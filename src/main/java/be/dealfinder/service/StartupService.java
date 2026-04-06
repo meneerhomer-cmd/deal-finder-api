@@ -2,10 +2,10 @@ package be.dealfinder.service;
 
 import be.dealfinder.entity.Deal;
 import io.quarkus.runtime.StartupEvent;
+import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
@@ -19,8 +19,7 @@ public class StartupService {
     @Inject
     ScraperService scraperService;
 
-    @Inject
-    ManagedExecutor executor;
+    private boolean initialScrapeNeeded = false;
 
     void onStart(@Observes StartupEvent event) {
         LOG.info("===========================================");
@@ -29,14 +28,22 @@ public class StartupService {
 
         dataInitService.initializeAll();
 
-        // Auto-scrape if database is empty (e.g., Cloud Run cold start with H2 in-memory)
         if (Deal.count() == 0) {
-            LOG.info("Database is empty — triggering background scrape...");
-            executor.runAsync(scraperService::scrapeAll);
+            LOG.info("Database is empty — will scrape after startup completes");
+            initialScrapeNeeded = true;
         }
 
         LOG.info("===========================================");
         LOG.info("Startup complete!");
         LOG.info("===========================================");
+    }
+
+    @Scheduled(every = "30s", delayed = "5s")
+    void checkInitialScrape() {
+        if (initialScrapeNeeded && !scraperService.getStatus().running()) {
+            initialScrapeNeeded = false;
+            LOG.info("Triggering initial scrape (empty database)...");
+            scraperService.scrapeAll();
+        }
     }
 }

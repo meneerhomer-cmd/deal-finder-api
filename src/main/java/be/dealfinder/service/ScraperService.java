@@ -1,6 +1,7 @@
 package be.dealfinder.service;
 
 import be.dealfinder.entity.Retailer;
+import be.dealfinder.scraper.GraphQLScraper;
 import be.dealfinder.scraper.MyShopScraper;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -20,7 +21,10 @@ public class ScraperService {
     private static final Logger LOG = Logger.getLogger(ScraperService.class);
 
     @Inject
-    MyShopScraper scraper;
+    GraphQLScraper graphQLScraper;
+
+    @Inject
+    MyShopScraper htmlScraper;
 
     @Inject
     DealService dealService;
@@ -61,7 +65,7 @@ public class ScraperService {
             int totalUpdated = 0;
 
             for (Retailer retailer : retailers) {
-                MyShopScraper.ScraperResult result = scraper.scrapeRetailer(retailer);
+                MyShopScraper.ScraperResult result = graphQLScraper.scrapeRetailer(retailer);
                 lastResults.add(result);
                 
                 if (result.isSuccess()) {
@@ -97,7 +101,7 @@ public class ScraperService {
             return new MyShopScraper.ScraperResult(retailerSlug, 0, 0, "Retailer is inactive");
         }
 
-        return scraper.scrapeRetailer(retailer);
+        return graphQLScraper.scrapeRetailer(retailer);
     }
 
     public ScraperStatus getStatus() {

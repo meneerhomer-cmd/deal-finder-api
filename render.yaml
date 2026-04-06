@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: deal-finder-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.multistage
+    plan: free
+    envVars:
+      - key: QUARKUS_PROFILE
+        value: prod
+      - key: QUARKUS_HTTP_PORT
+        value: "8080"
+      - key: QUARKUS_HTTP_CORS_ORIGINS
+        value: "https://promo-finder-be.web.app,https://promo-finder-be.firebaseapp.com,http://localhost:8100"
+    healthCheckPath: /q/health/ready

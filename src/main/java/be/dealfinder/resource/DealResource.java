@@ -1,6 +1,9 @@
 package be.dealfinder.resource;
 
 import be.dealfinder.dto.DealDTO;
+import be.dealfinder.dto.PriceHistoryDTO;
+import be.dealfinder.entity.Deal;
+import be.dealfinder.entity.PriceHistory;
 import be.dealfinder.service.DealService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -12,6 +15,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Path("/api/v1/deals")
 @Produces(MediaType.APPLICATION_JSON)
@@ -93,10 +97,26 @@ public class DealResource {
     @Operation(summary = "Get deals for a specific retailer")
     public List<DealDTO> getDealsByRetailer(
             @PathParam("slug") String slug,
-            
+
             @Parameter(description = "Language: en, nl, fr")
             @QueryParam("lang") @DefaultValue("en") String language
     ) {
         return dealService.findDealsByRetailer(slug, language);
+    }
+
+    @GET
+    @Path("/{id}/price-history")
+    @Operation(summary = "Get price history for a deal")
+    public Response getPriceHistory(@PathParam("id") Long id) {
+        Deal deal = Deal.findById(id);
+        if (deal == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        String normalized = PriceHistory.normalizeProductName(deal.productName);
+        List<PriceHistoryDTO> history = PriceHistory.findByProductAndRetailerLast90Days(normalized, deal.retailer.id)
+                .stream()
+                .map(PriceHistoryDTO::from)
+                .collect(Collectors.toList());
+        return Response.ok(history).build();
     }
 }

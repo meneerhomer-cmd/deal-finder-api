@@ -2,7 +2,7 @@ package be.dealfinder.service;
 
 import be.dealfinder.entity.Retailer;
 import be.dealfinder.scraper.GraphQLScraper;
-import be.dealfinder.scraper.MyShopScraper;
+import be.dealfinder.scraper.GraphQLScraper;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -24,9 +24,6 @@ public class ScraperService {
     GraphQLScraper graphQLScraper;
 
     @Inject
-    MyShopScraper htmlScraper;
-
-    @Inject
     DealService dealService;
 
     @ConfigProperty(name = "scraper.enabled", defaultValue = "true")
@@ -34,7 +31,7 @@ public class ScraperService {
 
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
     private LocalDateTime lastRunTime;
-    private List<MyShopScraper.ScraperResult> lastResults = new ArrayList<>();
+    private List<GraphQLScraper.ScraperResult> lastResults = new ArrayList<>();
 
     @Scheduled(cron = "{scraper.schedule.cron}")
     public void scheduledScrape() {
@@ -42,7 +39,7 @@ public class ScraperService {
         scrapeAll();
     }
 
-    public List<MyShopScraper.ScraperResult> scrapeAll() {
+    public List<GraphQLScraper.ScraperResult> scrapeAll() {
         if (!enabled) {
             LOG.info("Scraper is disabled");
             return List.of();
@@ -65,7 +62,7 @@ public class ScraperService {
             int totalUpdated = 0;
 
             for (Retailer retailer : retailers) {
-                MyShopScraper.ScraperResult result = graphQLScraper.scrapeRetailer(retailer);
+                GraphQLScraper.ScraperResult result = graphQLScraper.scrapeRetailer(retailer);
                 lastResults.add(result);
                 
                 if (result.isSuccess()) {
@@ -91,14 +88,14 @@ public class ScraperService {
         }
     }
 
-    public MyShopScraper.ScraperResult scrapeRetailer(String retailerSlug) {
+    public GraphQLScraper.ScraperResult scrapeRetailer(String retailerSlug) {
         Retailer retailer = Retailer.findBySlug(retailerSlug);
         if (retailer == null) {
-            return new MyShopScraper.ScraperResult(retailerSlug, 0, 0, "Retailer not found");
+            return new GraphQLScraper.ScraperResult(retailerSlug, 0, 0, "Retailer not found");
         }
 
         if (!retailer.active) {
-            return new MyShopScraper.ScraperResult(retailerSlug, 0, 0, "Retailer is inactive");
+            return new GraphQLScraper.ScraperResult(retailerSlug, 0, 0, "Retailer is inactive");
         }
 
         return graphQLScraper.scrapeRetailer(retailer);
@@ -117,7 +114,7 @@ public class ScraperService {
             boolean enabled,
             boolean running,
             LocalDateTime lastRunTime,
-            List<MyShopScraper.ScraperResult> lastResults
+            List<GraphQLScraper.ScraperResult> lastResults
     ) {
         public String getLastRunTimeFormatted() {
             if (lastRunTime == null) return "Never";
@@ -126,13 +123,13 @@ public class ScraperService {
 
         public int getTotalDealsAdded() {
             return lastResults.stream()
-                    .mapToInt(MyShopScraper.ScraperResult::added)
+                    .mapToInt(GraphQLScraper.ScraperResult::added)
                     .sum();
         }
 
         public int getTotalDealsUpdated() {
             return lastResults.stream()
-                    .mapToInt(MyShopScraper.ScraperResult::updated)
+                    .mapToInt(GraphQLScraper.ScraperResult::updated)
                     .sum();
         }
 

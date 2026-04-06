@@ -1,11 +1,13 @@
 package be.dealfinder.service;
 
+import be.dealfinder.entity.Deal;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
+
+import java.util.concurrent.CompletableFuture;
 
 @ApplicationScoped
 public class StartupService {
@@ -18,26 +20,21 @@ public class StartupService {
     @Inject
     ScraperService scraperService;
 
-    @ConfigProperty(name = "app.scrape-on-startup", defaultValue = "false")
-    boolean scrapeOnStartup;
-
     void onStart(@Observes StartupEvent event) {
         LOG.info("===========================================");
         LOG.info("Belgian Deal Finder API - Starting up...");
         LOG.info("===========================================");
 
-        // Initialize data
         dataInitService.initializeAll();
 
-        // Optionally scrape on startup
-        if (scrapeOnStartup) {
-            LOG.info("Scrape on startup is enabled, starting initial scrape...");
-            scraperService.scrapeAll();
+        // Auto-scrape if database is empty (e.g., Cloud Run cold start with H2 in-memory)
+        if (Deal.count() == 0) {
+            LOG.info("Database is empty — triggering background scrape...");
+            CompletableFuture.runAsync(scraperService::scrapeAll);
         }
 
         LOG.info("===========================================");
         LOG.info("Startup complete!");
-        LOG.info("Swagger UI: http://localhost:8080/swagger-ui");
         LOG.info("===========================================");
     }
 }

@@ -4,7 +4,6 @@ import be.dealfinder.entity.Category;
 import be.dealfinder.entity.Deal;
 import be.dealfinder.entity.PriceHistory;
 import be.dealfinder.entity.Retailer;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -56,9 +55,9 @@ public class GraphQLScraper {
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public MyShopScraper.ScraperResult scrapeRetailer(Retailer retailer) {
+    public GraphQLScraper.ScraperResult scrapeRetailer(Retailer retailer) {
         if (!enabled) {
-            return new MyShopScraper.ScraperResult(retailer.slug, 0, 0, "Scraper disabled");
+            return new GraphQLScraper.ScraperResult(retailer.slug, 0, 0, "Scraper disabled");
         }
 
         LOG.info("GraphQL scrape starting for " + retailer.name);
@@ -82,11 +81,11 @@ public class GraphQLScraper {
             }
 
             LOG.info("GraphQL scrape complete for " + retailer.name + ": " + added + " added, " + updated + " updated");
-            return new MyShopScraper.ScraperResult(retailer.slug, added, updated, null);
+            return new GraphQLScraper.ScraperResult(retailer.slug, added, updated, null);
 
         } catch (Exception e) {
             LOG.error("GraphQL scrape failed for " + retailer.name + ": " + e.getMessage(), e);
-            return new MyShopScraper.ScraperResult(retailer.slug, 0, 0, e.getMessage());
+            return new GraphQLScraper.ScraperResult(retailer.slug, 0, 0, e.getMessage());
         }
     }
 
@@ -216,6 +215,12 @@ public class GraphQLScraper {
             return ZonedDateTime.parse(dateStr).toLocalDate();
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    public record ScraperResult(String retailerSlug, int added, int updated, String error) {
+        public boolean isSuccess() {
+            return error == null || error.isBlank();
         }
     }
 }

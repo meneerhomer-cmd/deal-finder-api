@@ -3,6 +3,7 @@ package be.dealfinder.dto;
 import be.dealfinder.entity.Deal;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 
 public record DealDTO(
     Long id,
@@ -20,9 +21,11 @@ public record DealDTO(
     String imageUrl,
     String sourceUrl,
     boolean expired,
-    Long daysExpired
+    Long daysExpired,
+    boolean expiringSoon
 ) {
     public static DealDTO from(Deal deal, String language) {
+        long daysUntilExpiry = ChronoUnit.DAYS.between(LocalDate.now(), deal.validUntil);
         return new DealDTO(
             deal.id,
             deal.productName,
@@ -39,7 +42,8 @@ public record DealDTO(
             deal.imageUrl,
             deal.sourceUrl,
             deal.isExpired(),
-            deal.getDaysExpired()
+            deal.getDaysExpired(),
+            !deal.isExpired() && daysUntilExpiry <= 2
         );
     }
 

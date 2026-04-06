@@ -1,11 +1,23 @@
+FROM maven:3.9-eclipse-temurin-21-alpine AS build
+
+WORKDIR /app
+COPY pom.xml .
+
+RUN mvn dependency:go-offline -B 2>/dev/null || true
+
+COPY src src
+RUN mvn package -Dquarkus.package.type=uber-jar -DskipTests -B \
+    -Dquarkus.datasource.db-kind=h2 \
+    -Dquarkus.datasource.jdbc.url=jdbc:h2:mem:dealfinder \
+    -Dquarkus.datasource.username=sa \
+    -Dquarkus.datasource.password= \
+    -Dquarkus.hibernate-orm.database.generation=update
+
 FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
-
-COPY target/deal-finder-api-1.0.0-SNAPSHOT-runner.jar app.jar
+COPY --from=build /app/target/deal-finder-api-1.0.0-SNAPSHOT-runner.jar app.jar
 
 EXPOSE 8080
 
-ENV JAVA_OPTS="-Xmx256m"
-
-CMD ["java", "-jar", "app.jar"]
+CMD ["java", "-Dquarkus.http.host=0.0.0.0", "-Dquarkus.http.port=8080", "-jar", "app.jar"]

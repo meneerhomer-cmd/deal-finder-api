@@ -51,16 +51,12 @@ public record DealDTO(
 
     private static String detectDealType(BigDecimal currentPrice, BigDecimal originalPrice) {
         if (currentPrice == null || originalPrice == null || currentPrice.compareTo(BigDecimal.ZERO) == 0) {
-            return "Korting";
+            return null;
         }
         double ratio = originalPrice.doubleValue() / currentPrice.doubleValue();
-        if (Math.abs(ratio - 2.0) < 0.05) return "1+1 gratis";
-        if (Math.abs(ratio - 3.0) < 0.05) return "2+1 gratis";
-        if (Math.abs(ratio - 4.0) < 0.05) return "3+1 gratis";
-        if (ratio >= 5.0 && Math.abs(ratio - Math.round(ratio)) < 0.1) {
-            return (int) Math.round(ratio) + " voor de prijs van 1";
-        }
-        return "Korting";
+        if (Math.abs(ratio - 2.0) < 0.05) return "Mogelijk 1+1 gratis";
+        if (Math.abs(ratio - 3.0) < 0.05) return "Mogelijk 2+1 gratis";
+        return null;
     }
 
     public static DealDTO from(Deal deal) {

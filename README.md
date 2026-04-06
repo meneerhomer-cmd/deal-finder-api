@@ -1,17 +1,19 @@
 # Belgian Deal Finder API
 
-A Quarkus-based REST API for aggregating multi-buy deals (1+1 gratis, 2+1 gratis, etc.) from Belgian retailers.
+Quarkus REST API that scrapes multi-buy deals from Belgian retailers via myShopi.com. Backend for the [deal-finder-app](https://github.com/meneerhomer-cmd/deal-finder) Ionic/Angular frontend.
 
 ## Features
 
-- 🛒 **Deal Aggregation**: Scrapes deals from myShopi.com for 6 major Belgian retailers
-- 🔍 **Smart Filtering**: Filter by retailer, category, minimum discount, and search terms
-- 📊 **Sorting Options**: Sort by discount, price, expiry date, or name
-- 🌍 **Multi-language**: Supports English, Dutch (Flemish), and French
-- 📝 **Shopping List**: Save deals to a session-based shopping list
-- 📈 **Price History**: Stores historical price data for future trend analysis
-- ⏰ **Scheduled Scraping**: Daily automated scraping with Saturday priority
-- 📖 **API Documentation**: Swagger UI for easy API exploration
+- **Deal aggregation** — scrapes 6 Belgian retailers from myShopi.com
+- **Smart filtering** — by retailer, category, discount, search term
+- **Sorting & pagination** — sort by discount/price/expiry/name, optional paging
+- **25 Dutch categories** — vlees, vis, zuivel, dranken, etc. with tri-lingual names
+- **Shopping list** — session-based CRUD with purchased tracking
+- **Price history** — tracks price changes over time per product
+- **Statistics** — deal counts, averages, top categories, expiring deals
+- **Async scraping** — background scrape with status polling
+- **Health checks** — readiness probe at `/q/health/ready`
+- **Swagger UI** — interactive API docs
 
 ## Supported Retailers
 
@@ -31,156 +33,119 @@ A Quarkus-based REST API for aggregating multi-buy deals (1+1 gratis, 2+1 gratis
 - **Database**: H2 (dev) / PostgreSQL (prod)
 - **ORM**: Hibernate ORM with Panache
 - **Scraping**: JSoup 1.17.2
+- **Tests**: REST-assured + JUnit 5 (24 tests)
 - **API Docs**: SmallRye OpenAPI / Swagger UI
 
 ## Getting Started
 
-### Prerequisites
-
-- Java 21+
-- Maven 3.9+ (or use included wrapper)
-
-### Run in Development Mode
-
 ```bash
-./mvnw quarkus:dev
+# Prerequisites: Java 21+, Maven 3.9+
+mvn quarkus:dev              # Dev server at http://localhost:8080
+mvn test                     # Run 24 integration tests
+mvn package -Dquarkus.package.type=uber-jar  # Production build
 ```
 
-The API will be available at `http://localhost:8080`
-
-Swagger UI: `http://localhost:8080/swagger-ui`
-
-### Build for Production
-
-```bash
-./mvnw package -Dquarkus.package.type=uber-jar
-java -jar target/deal-finder-api-1.0.0-SNAPSHOT-runner.jar
-```
+**Swagger UI**: http://localhost:8080/swagger-ui
+**Health**: http://localhost:8080/q/health/ready
 
 ## API Endpoints
 
 ### Deals
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/deals` | Get all deals with filters |
-| GET | `/api/v1/deals/grouped` | Get deals grouped by retailer |
-| GET | `/api/v1/deals/{id}` | Get deal by ID |
-| GET | `/api/v1/deals/retailer/{slug}` | Get deals for specific retailer |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/deals` | All deals (filters: retailer, category, minDiscount, search, sort, order, lang, page, size) |
+| GET | `/api/v1/deals/grouped` | Deals grouped by retailer |
+| GET | `/api/v1/deals/{id}` | Single deal |
+| GET | `/api/v1/deals/retailer/{slug}` | Deals for one retailer |
+| GET | `/api/v1/deals/{id}/price-history` | Price history (last 90 days) |
 
-**Query Parameters for `/api/v1/deals`:**
-
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `retailer` | Filter by retailer slugs (comma-separated) | `lidl,kruidvat` |
-| `category` | Filter by category slugs (comma-separated) | `meat,dairy` |
-| `minDiscount` | Minimum discount percentage (20-100) | `50` |
-| `search` | Search by product name | `coca-cola` |
-| `sort` | Sort by: discount, price, expiry, name | `discount` |
-| `order` | Sort order: asc, desc | `desc` |
-| `lang` | Language: en, nl, fr | `nl` |
+Pagination: add `?page=0&size=20` for a `PagedResponse` with `items`, `totalItems`, `page`, `pageSize`, `totalPages`. Without `page`, returns a flat list (backward compatible).
 
 ### Retailers
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/retailers` | Get all active retailers |
-| GET | `/api/v1/retailers/{slug}` | Get retailer by slug |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/retailers` | All retailers (includes `dealCount`) |
+| GET | `/api/v1/retailers/{slug}` | Single retailer |
 
 ### Categories
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/categories` | Get all categories |
-| GET | `/api/v1/categories/{slug}` | Get category by slug |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/categories` | All categories (`?lang=nl/fr/en`) |
+| GET | `/api/v1/categories/{slug}` | Single category |
 
 ### Shopping List
 
-Requires `X-Session-Id` header for all requests.
+All require `X-Session-Id` header.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/shopping-list` | Get shopping list |
-| GET | `/api/v1/shopping-list/active` | Get active items |
-| GET | `/api/v1/shopping-list/purchased` | Get purchased items |
-| POST | `/api/v1/shopping-list/{dealId}` | Add deal to list |
-| DELETE | `/api/v1/shopping-list/{dealId}` | Remove deal from list |
-| PATCH | `/api/v1/shopping-list/{dealId}/purchased` | Mark as purchased |
-| DELETE | `/api/v1/shopping-list/{dealId}/purchased` | Mark as not purchased |
-| DELETE | `/api/v1/shopping-list` | Clear entire list |
-| GET | `/api/v1/shopping-list/count` | Get item count |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/shopping-list` | Full list |
+| POST | `/api/v1/shopping-list/{dealId}` | Add deal |
+| DELETE | `/api/v1/shopping-list/{dealId}` | Remove deal |
+| PATCH | `/api/v1/shopping-list/{dealId}/purchased` | Mark purchased |
+| DELETE | `/api/v1/shopping-list/{dealId}/purchased` | Mark not purchased |
+| DELETE | `/api/v1/shopping-list` | Clear all |
+| GET | `/api/v1/shopping-list/count` | Item count |
+
+### Statistics
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/stats` | Overview: totals, avg discount, best deal, expiring count, by-retailer, top categories |
 
 ### Admin
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/admin/scrape` | Trigger full scrape |
-| POST | `/api/v1/admin/scrape/{retailerSlug}` | Scrape specific retailer |
-| GET | `/api/v1/admin/status` | Get scraper status |
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/admin/scrape` | Trigger async scrape (returns 202) |
+| POST | `/api/v1/admin/scrape/{slug}` | Scrape one retailer |
+| GET | `/api/v1/admin/status` | Scraper status |
+| GET | `/api/v1/admin/debug/{slug}` | Debug: raw HTML JSoup sees |
 
-## Example API Calls
+## Example Calls
 
 ```bash
-# Get all deals with 50%+ discount from Lidl
 curl "http://localhost:8080/api/v1/deals?retailer=lidl&minDiscount=50"
-
-# Get meat deals in Dutch
-curl "http://localhost:8080/api/v1/deals?category=meat&lang=nl"
-
-# Search for Coca-Cola deals
-curl "http://localhost:8080/api/v1/deals?search=coca-cola"
-
-# Add to shopping list
-curl -X POST "http://localhost:8080/api/v1/shopping-list/123" \
-  -H "X-Session-Id: my-device-id"
-
-# Trigger a scrape
+curl "http://localhost:8080/api/v1/deals?category=vlees&lang=nl"
+curl "http://localhost:8080/api/v1/deals?page=0&size=10"
+curl "http://localhost:8080/api/v1/stats"
+curl "http://localhost:8080/api/v1/deals/1/price-history"
 curl -X POST "http://localhost:8080/api/v1/admin/scrape"
+curl "http://localhost:8080/api/v1/admin/status"
 ```
 
-## Configuration
+## Categories (25 Dutch slugs)
 
-Key configuration in `application.properties`:
-
-```properties
-# Scraping
-scraper.enabled=true
-scraper.timeout=15000
-scraper.request-delay=2000
-scraper.schedule.cron=0 0 6 * * ?
-
-# Deals
-deals.minimum-discount=20
-deals.expired-visible-days=3
-
-# Database (production)
-%prod.quarkus.datasource.db-kind=postgresql
-%prod.quarkus.datasource.jdbc.url=${DATABASE_URL}
-```
-
-## Categories
-
-| Slug | English | Dutch | French |
-|------|---------|-------|--------|
-| meat | Meat | Vlees | Viande |
-| fish | Fish & Seafood | Vis & Zeevruchten | Poisson & Fruits de mer |
-| dairy | Dairy | Zuivel | Produits laitiers |
-| drinks | Drinks | Dranken | Boissons |
-| household | Household | Huishouden | Ménage |
-| personal-care | Personal Care | Verzorging | Soins personnels |
-| baby | Baby | Baby | Bébé |
-| snacks | Snacks & Sweets | Snacks & Snoep | Snacks & Bonbons |
-| frozen | Frozen | Diepvries | Surgelés |
-| bakery | Bread & Bakery | Brood & Gebak | Pain & Pâtisserie |
-| fruits-vegetables | Fruits & Vegetables | Groenten & Fruit | Fruits & Légumes |
-| pets | Pets | Huisdieren | Animaux |
-
-## Future Roadmap
-
-- [ ] Firebase Authentication for user accounts
-- [ ] Push notifications for favorite deals (Firebase Cloud Messaging)
-- [ ] Price history visualization
-- [ ] Angular/Ionic mobile frontend
+| Slug | Dutch | English |
+|------|-------|---------|
+| vlees | Vlees | Meat |
+| charcuterie | Charcuterie | Charcuterie |
+| vis | Vis & Zeevruchten | Fish & Seafood |
+| zuivel | Zuivel | Dairy |
+| kaas | Kaas | Cheese |
+| dranken | Dranken | Drinks |
+| bier | Bier | Beer |
+| wijn | Wijn | Wine |
+| snoep | Snoep | Snacks & Sweets |
+| chips | Chips | Chips & Crisps |
+| ontbijt | Ontbijt | Breakfast |
+| brood | Brood | Bread & Bakery |
+| diepvries | Diepvries | Frozen |
+| conserven | Conserven | Canned |
+| pasta | Pasta | Pasta & Rice |
+| sauzen | Sauzen | Sauces |
+| groenten | Groenten | Vegetables |
+| fruit | Fruit | Fruit |
+| kruiden | Kruiden | Herbs & Spices |
+| huishouden | Huishouden | Household |
+| schoonmaak | Schoonmaak | Cleaning |
+| verzorging | Verzorging | Personal Care |
+| baby | Baby | Baby |
+| huisdier | Huisdier | Pets |
+| andere | Andere | Other |
 
 ## License
 

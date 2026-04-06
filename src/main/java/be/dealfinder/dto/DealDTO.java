@@ -16,6 +16,7 @@ public record DealDTO(
     BigDecimal currentPrice,
     BigDecimal originalPrice,
     Integer discountPercentage,
+    String dealType,
     LocalDate validFrom,
     LocalDate validUntil,
     String imageUrl,
@@ -37,6 +38,7 @@ public record DealDTO(
             deal.currentPrice,
             deal.originalPrice,
             deal.discountPercentage,
+            detectDealType(deal.currentPrice, deal.originalPrice),
             deal.validFrom,
             deal.validUntil,
             deal.imageUrl,
@@ -45,6 +47,20 @@ public record DealDTO(
             deal.getDaysExpired(),
             !deal.isExpired() && daysUntilExpiry <= 2
         );
+    }
+
+    private static String detectDealType(BigDecimal currentPrice, BigDecimal originalPrice) {
+        if (currentPrice == null || originalPrice == null || currentPrice.compareTo(BigDecimal.ZERO) == 0) {
+            return "Korting";
+        }
+        double ratio = originalPrice.doubleValue() / currentPrice.doubleValue();
+        if (Math.abs(ratio - 2.0) < 0.05) return "1+1 gratis";
+        if (Math.abs(ratio - 3.0) < 0.05) return "2+1 gratis";
+        if (Math.abs(ratio - 4.0) < 0.05) return "3+1 gratis";
+        if (ratio >= 5.0 && Math.abs(ratio - Math.round(ratio)) < 0.1) {
+            return (int) Math.round(ratio) + " voor de prijs van 1";
+        }
+        return "Korting";
     }
 
     public static DealDTO from(Deal deal) {

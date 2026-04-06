@@ -1,6 +1,7 @@
 package be.dealfinder.service;
 
 import be.dealfinder.dto.DealDTO;
+import be.dealfinder.dto.PagedResponse;
 import be.dealfinder.entity.Category;
 import be.dealfinder.entity.Deal;
 import io.quarkus.panache.common.Sort;
@@ -64,6 +65,44 @@ public class DealService {
         return deals.stream()
                 .map(deal -> DealDTO.from(deal, lang))
                 .collect(Collectors.toList());
+    }
+
+    public PagedResponse<DealDTO> findDealsPaged(
+            List<String> retailers, List<String> categories, Integer minDiscount,
+            String search, String sortBy, String sortOrder, String language,
+            int page, int pageSize
+    ) {
+        LocalDate cutoffDate = LocalDate.now().minusDays(expiredVisibleDays);
+        int discount = minDiscount != null ? minDiscount : defaultMinDiscount;
+
+        StringBuilder query = new StringBuilder("validUntil >= ?1 AND discountPercentage >= ?2");
+        List<Object> params = new ArrayList<>();
+        params.add(cutoffDate);
+        params.add(discount);
+        int paramIndex = 3;
+
+        if (retailers != null && !retailers.isEmpty()) {
+            query.append(" AND retailer.slug IN (?").append(paramIndex++).append(")");
+            params.add(retailers);
+        }
+        if (categories != null && !categories.isEmpty()) {
+            query.append(" AND category.slug IN (?").append(paramIndex++).append(")");
+            params.add(categories);
+        }
+        if (search != null && !search.isBlank()) {
+            query.append(" AND LOWER(productName) LIKE ?").append(paramIndex++);
+            params.add("%" + search.toLowerCase() + "%");
+        }
+
+        Sort sort = buildSort(sortBy, sortOrder);
+        long totalItems = Deal.count(query.toString(), params.toArray());
+        List<Deal> deals = Deal.find(query.toString(), sort, params.toArray())
+                .page(page, pageSize)
+                .list();
+
+        String lang = language != null ? language : "en";
+        List<DealDTO> dtos = deals.stream().map(d -> DealDTO.from(d, lang)).collect(Collectors.toList());
+        return PagedResponse.of(dtos, totalItems, page, pageSize);
     }
 
     public List<DealDTO> findDealsByRetailer(String retailerSlug, String language) {

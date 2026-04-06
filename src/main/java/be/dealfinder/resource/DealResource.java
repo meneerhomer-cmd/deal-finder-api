@@ -1,6 +1,7 @@
 package be.dealfinder.resource;
 
 import be.dealfinder.dto.DealDTO;
+import be.dealfinder.dto.PagedResponse;
 import be.dealfinder.dto.PriceHistoryDTO;
 import be.dealfinder.entity.Deal;
 import be.dealfinder.entity.PriceHistory;
@@ -26,43 +27,50 @@ public class DealResource {
     DealService dealService;
 
     @GET
-    @Operation(summary = "Get all deals", description = "Returns deals with optional filters")
-    public List<DealDTO> getDeals(
+    @Operation(summary = "Get all deals", description = "Returns deals with optional filters. Add page/size for pagination.")
+    public Response getDeals(
             @Parameter(description = "Filter by retailer slugs (comma-separated)")
             @QueryParam("retailer") String retailers,
-            
+
             @Parameter(description = "Filter by category slugs (comma-separated)")
             @QueryParam("category") String categories,
-            
+
             @Parameter(description = "Minimum discount percentage (20-100)")
             @QueryParam("minDiscount") Integer minDiscount,
-            
+
             @Parameter(description = "Search by product name")
             @QueryParam("search") String search,
-            
+
             @Parameter(description = "Sort by: discount, price, expiry, name")
             @QueryParam("sort") @DefaultValue("discount") String sort,
-            
+
             @Parameter(description = "Sort order: asc, desc")
             @QueryParam("order") String order,
-            
+
             @Parameter(description = "Language: en, nl, fr")
-            @QueryParam("lang") @DefaultValue("en") String language
+            @QueryParam("lang") @DefaultValue("en") String language,
+
+            @Parameter(description = "Page number (0-based). Omit for unpaginated.")
+            @QueryParam("page") Integer page,
+
+            @Parameter(description = "Page size (default 20)")
+            @QueryParam("size") @DefaultValue("20") int size
     ) {
-        List<String> retailerList = retailers != null && !retailers.isBlank() 
+        List<String> retailerList = retailers != null && !retailers.isBlank()
                 ? List.of(retailers.split(",")) : null;
-        List<String> categoryList = categories != null && !categories.isBlank() 
+        List<String> categoryList = categories != null && !categories.isBlank()
                 ? List.of(categories.split(",")) : null;
 
-        return dealService.findDeals(
-                retailerList,
-                categoryList,
-                minDiscount,
-                search,
-                sort,
-                order,
-                language
-        );
+        if (page != null) {
+            PagedResponse<DealDTO> paged = dealService.findDealsPaged(
+                    retailerList, categoryList, minDiscount, search, sort, order, language,
+                    page, size);
+            return Response.ok(paged).build();
+        }
+
+        return Response.ok(dealService.findDeals(
+                retailerList, categoryList, minDiscount, search, sort, order, language
+        )).build();
     }
 
     @GET

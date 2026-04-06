@@ -9,7 +9,10 @@ import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -33,48 +36,29 @@ public class DealService {
         LocalDate cutoffDate = LocalDate.now().minusDays(expiredVisibleDays);
         int discount = minDiscount != null ? minDiscount : defaultMinDiscount;
 
-        // Build query dynamically
         StringBuilder query = new StringBuilder("validUntil >= ?1 AND discountPercentage >= ?2");
-        Map<String, Object> params = new HashMap<>();
+        List<Object> params = new ArrayList<>();
+        params.add(cutoffDate);
+        params.add(discount);
         int paramIndex = 3;
 
-        // Add retailer filter
         if (retailers != null && !retailers.isEmpty()) {
             query.append(" AND retailer.slug IN (?").append(paramIndex++).append(")");
+            params.add(retailers);
         }
 
-        // Add category filter
         if (categories != null && !categories.isEmpty()) {
             query.append(" AND category.slug IN (?").append(paramIndex++).append(")");
+            params.add(categories);
         }
 
-        // Add search filter
         if (search != null && !search.isBlank()) {
             query.append(" AND LOWER(productName) LIKE ?").append(paramIndex++);
+            params.add("%" + search.toLowerCase() + "%");
         }
 
-        // Build sort
         Sort sort = buildSort(sortBy, sortOrder);
-
-        // Execute query
-        List<Deal> deals;
-        if (retailers != null && !retailers.isEmpty() && categories != null && !categories.isEmpty() && search != null && !search.isBlank()) {
-            deals = Deal.find(query.toString(), sort, cutoffDate, discount, retailers, categories, "%" + search.toLowerCase() + "%").list();
-        } else if (retailers != null && !retailers.isEmpty() && categories != null && !categories.isEmpty()) {
-            deals = Deal.find(query.toString(), sort, cutoffDate, discount, retailers, categories).list();
-        } else if (retailers != null && !retailers.isEmpty() && search != null && !search.isBlank()) {
-            deals = Deal.find(query.toString(), sort, cutoffDate, discount, retailers, "%" + search.toLowerCase() + "%").list();
-        } else if (categories != null && !categories.isEmpty() && search != null && !search.isBlank()) {
-            deals = Deal.find(query.toString(), sort, cutoffDate, discount, categories, "%" + search.toLowerCase() + "%").list();
-        } else if (retailers != null && !retailers.isEmpty()) {
-            deals = Deal.find(query.toString(), sort, cutoffDate, discount, retailers).list();
-        } else if (categories != null && !categories.isEmpty()) {
-            deals = Deal.find(query.toString(), sort, cutoffDate, discount, categories).list();
-        } else if (search != null && !search.isBlank()) {
-            deals = Deal.find(query.toString(), sort, cutoffDate, discount, "%" + search.toLowerCase() + "%").list();
-        } else {
-            deals = Deal.find(query.toString(), sort, cutoffDate, discount).list();
-        }
+        List<Deal> deals = Deal.findWithRelations(query.toString(), sort, params.toArray());
 
         String lang = language != null ? language : "en";
         return deals.stream()

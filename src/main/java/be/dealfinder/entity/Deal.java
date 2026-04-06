@@ -1,7 +1,6 @@
 package be.dealfinder.entity;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
-import io.quarkus.panache.common.Parameters;
 import io.quarkus.panache.common.Sort;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -115,7 +114,17 @@ public class Deal extends PanacheEntity {
 
     public static long deleteExpiredOlderThan(int days) {
         LocalDate cutoffDate = LocalDate.now().minusDays(days);
+        ShoppingListItem.delete("deal.id IN (SELECT d.id FROM Deal d WHERE d.validUntil < ?1)", cutoffDate);
         return delete("validUntil < ?1", cutoffDate);
+    }
+
+    /**
+     * Find deals with eagerly fetched retailer and category to avoid N+1 queries.
+     */
+    public static List<Deal> findWithRelations(String whereClause, Sort sort, Object... params) {
+        String jpql = "FROM Deal d LEFT JOIN FETCH d.retailer LEFT JOIN FETCH d.category WHERE " + whereClause;
+        var query = Deal.find(jpql, sort, params);
+        return query.list();
     }
 
     // === Factory Method ===

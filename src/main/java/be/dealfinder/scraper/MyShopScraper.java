@@ -44,10 +44,9 @@ public class MyShopScraper {
     // Patterns for parsing
     private static final Pattern PRICE_PATTERN = Pattern.compile("€\\s*([\\d.,]+)");
     private static final Pattern DISCOUNT_PATTERN = Pattern.compile("(\\d+)%\\s*korting", Pattern.CASE_INSENSITIVE);
-    private static final Pattern SIMPLE_DISCOUNT_PATTERN = Pattern.compile("(\\d+)\\s*%");
+    private static final Pattern SIMPLE_DISCOUNT_PATTERN = Pattern.compile("(\\d+)\\s*%\\s*(?:korting|goedkoper|voordeel|reduction|off|moins)", Pattern.CASE_INSENSITIVE);
     private static final Pattern FOLDER_URL_PATTERN = Pattern.compile("/nl/([\\w-]+)-folder/([a-f0-9-]+)(?:/\\d+)?");
 
-    @Transactional
     public ScraperResult scrapeRetailer(Retailer retailer) {
         if (!enabled) {
             LOG.info("Scraper is disabled, skipping " + retailer.name);
@@ -107,14 +106,15 @@ public class MyShopScraper {
         
         for (Element link : folderLinks) {
             String href = link.attr("href");
-            
-            // Skip offer links (they have ?offer= parameter)
+
             if (href.contains("?offer=")) continue;
-            
-            // Extract folder UUID and construct base URL
+
+            // Only accept folders belonging to this retailer (skip "Vergelijkbare folders" from others)
+            if (!href.contains(retailer.slug.toLowerCase() + "-folder")) continue;
+
             Matcher matcher = FOLDER_URL_PATTERN.matcher(href);
             if (matcher.find()) {
-                String folderType = matcher.group(1); // e.g., "lidl"
+                String folderType = matcher.group(1);
                 String folderUuid = matcher.group(2);
                 String baseUrl = "https://www.myshopi.com/nl/" + folderType + "-folder/" + folderUuid;
                 folderUrls.add(baseUrl);
@@ -198,21 +198,9 @@ public class MyShopScraper {
                 
                 if (deal.discountPercentage < minimumDiscount) continue;
 
-                Deal existing = Deal.findByExternalId(deal.externalId);
-                if (existing != null) {
-                    existing.currentPrice = deal.currentPrice;
-                    existing.originalPrice = deal.originalPrice;
-                    existing.discountPercentage = deal.discountPercentage;
-                    existing.validUntil = deal.validUntil;
-                    existing.scrapedAt = LocalDateTime.now();
-                    existing.persist();
-                    updated++;
-                } else {
-                    deal.persist();
-                    PriceHistory.create(deal).persist();
-                    added++;
-                    LOG.debug("Added: " + deal.productName + " - " + deal.discountPercentage + "% off - €" + deal.currentPrice);
-                }
+                int[] result = saveDeal(deal);
+                added += result[0];
+                updated += result[1];
             } catch (Exception e) {
                 LOG.trace("Failed to parse offer: " + e.getMessage());
             }
@@ -430,6 +418,30 @@ public class MyShopScraper {
             return retailerSlug + "-" + offerId;
         }
         return retailerSlug + "-" + href.hashCode();
+    }
+
+    @Transactional
+    int[] saveDeal(Deal deal) {
+        Deal existing = Deal.findByExternalId(deal.externalId);
+        if (existing != null) {
+            boolean priceChanged = existing.currentPrice != null && deal.currentPrice != null
+                    && existing.currentPrice.compareTo(deal.currentPrice) != 0;
+            existing.currentPrice = deal.currentPrice;
+            existing.originalPrice = deal.originalPrice;
+            existing.discountPercentage = deal.discountPercentage;
+            existing.validUntil = deal.validUntil;
+            existing.scrapedAt = LocalDateTime.now();
+            existing.persist();
+            if (priceChanged) {
+                PriceHistory.create(existing).persist();
+            }
+            return new int[]{0, 1};
+        } else {
+            deal.persist();
+            PriceHistory.create(deal).persist();
+            LOG.debug("Added: " + deal.productName + " - " + deal.discountPercentage + "% off - €" + deal.currentPrice);
+            return new int[]{1, 0};
+        }
     }
 
     public record ScraperResult(String retailerSlug, int added, int updated, String error) {

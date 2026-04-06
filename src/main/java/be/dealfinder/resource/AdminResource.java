@@ -3,6 +3,7 @@ package be.dealfinder.resource;
 import be.dealfinder.entity.Retailer;
 import be.dealfinder.scraper.MyShopScraper;
 import be.dealfinder.service.ScraperService;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -19,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Path("/api/v1/admin")
 @Produces(MediaType.APPLICATION_JSON)
@@ -36,10 +38,15 @@ public class AdminResource {
 
     @POST
     @Path("/scrape")
-    @Operation(summary = "Trigger a full scrape of all retailers")
+    @Operation(summary = "Trigger a full scrape of all retailers (async)")
     public Response scrapeAll() {
-        List<MyShopScraper.ScraperResult> results = scraperService.scrapeAll();
-        return Response.ok(new ScrapeResponse("Scrape completed", results)).build();
+        if (scraperService.getStatus().running()) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(Map.of("message", "Scrape already in progress"))
+                    .build();
+        }
+        CompletableFuture.runAsync(scraperService::scrapeAll);
+        return Response.accepted(Map.of("message", "Scrape started. Check GET /status for progress.")).build();
     }
 
     @POST

@@ -57,6 +57,13 @@
             <artifactId>quarkus-jdbc-postgresql</artifactId>
         </dependency>
 
+        <!-- Cloud SQL Socket Factory for Cloud Run -->
+        <dependency>
+            <groupId>com.google.cloud.sql</groupId>
+            <artifactId>postgres-socket-factory</artifactId>
+            <version>1.21.0</version>
+        </dependency>
+
         <!-- Scheduling -->
         <dependency>
             <groupId>io.quarkus</groupId>

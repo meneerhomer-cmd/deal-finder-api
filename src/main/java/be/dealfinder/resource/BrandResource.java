@@ -1,5 +1,6 @@
 package be.dealfinder.resource;
 
+import be.dealfinder.entity.Deal;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ws.rs.*;
@@ -28,46 +29,31 @@ public class BrandResource {
 
     @GET
     @Operation(summary = "Get all brands with active deals",
-               description = "Aggregates unique brand names from all current offers across all retailers")
+               description = "Aggregates unique brand names from deals in our database (from AI image scanning)")
     public Response getBrands() {
-        try {
-            String query = """
-                query {
-                  offers(offers: {}, pagination: { limit: 500, offset: 0 }) {
-                    brandName
-                    shop { slug }
-                  }
-                }
-                """;
+        List<Deal> deals = Deal.listAll();
+        Map<String, Set<String>> brandRetailers = new LinkedHashMap<>();
 
-            JsonNode offers = executeQuery(query);
-            Map<String, Set<String>> brandRetailers = new LinkedHashMap<>();
-
-            for (JsonNode offer : offers) {
-                String brand = offer.path("brandName").asText(null);
-                if (brand != null && !brand.isBlank()) {
-                    String retailer = offer.path("shop").path("slug").asText();
-                    brandRetailers.computeIfAbsent(brand, k -> new TreeSet<>()).add(retailer);
-                }
+        for (Deal deal : deals) {
+            if (deal.brand != null && !deal.brand.isBlank()) {
+                brandRetailers.computeIfAbsent(deal.brand, k -> new TreeSet<>())
+                        .add(deal.retailer != null ? deal.retailer.name : "Onbekend");
             }
-
-            List<Map<String, Object>> brands = brandRetailers.entrySet().stream()
-                    .map(e -> {
-                        Map<String, Object> m = new LinkedHashMap<>();
-                        m.put("name", e.getKey());
-                        m.put("retailers", e.getValue());
-                        m.put("retailerCount", e.getValue().size());
-                        return m;
-                    })
-                    .sorted(Comparator.<Map<String, Object>, Integer>comparing(m -> (int) m.get("retailerCount")).reversed()
-                            .thenComparing(m -> (String) m.get("name")))
-                    .collect(Collectors.toList());
-
-            return Response.ok(Map.of("count", brands.size(), "brands", brands)).build();
-        } catch (Exception e) {
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity(Map.of("error", e.getMessage())).build();
         }
+
+        List<Map<String, Object>> brands = brandRetailers.entrySet().stream()
+                .map(e -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("name", e.getKey());
+                    m.put("retailers", e.getValue());
+                    m.put("retailerCount", e.getValue().size());
+                    return m;
+                })
+                .sorted(Comparator.<Map<String, Object>, Integer>comparing(m -> (int) m.get("retailerCount")).reversed()
+                        .thenComparing(m -> (String) m.get("name")))
+                .collect(Collectors.toList());
+
+        return Response.ok(Map.of("count", brands.size(), "brands", brands)).build();
     }
 
     @GET
@@ -125,19 +111,5 @@ public class BrandResource {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity(Map.of("error", e.getMessage())).build();
         }
-    }
-
-    private JsonNode executeQuery(String query) throws Exception {
-        String body = mapper.writeValueAsString(Map.of("query", query));
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GRAPHQL_URL))
-                .header("Content-Type", "application/json")
-                .header("jafolders-context", CONTEXT_HEADER)
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
-
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        JsonNode root = mapper.readTree(response.body());
-        return root.path("data").path("offers");
     }
 }

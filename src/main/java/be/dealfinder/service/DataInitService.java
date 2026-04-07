@@ -37,8 +37,12 @@ public class DataInitService {
     }
 
     private void upsertCategory(String slug, String nameEn, String nameNl, String nameFr, String keywords) {
-        if (Category.findBySlug(slug) == null) {
+        Category existing = Category.findBySlug(slug);
+        if (existing == null) {
             Category.create(slug, nameEn, nameNl, nameFr, keywords).persist();
+        } else if (keywords != null && !keywords.equals(existing.keywords)) {
+            existing.keywords = keywords;
+            existing.persist();
         }
     }
 
@@ -75,7 +79,7 @@ public class DataInitService {
         );
 
         upsertCategory("dranken", "Drinks", "Dranken", "Boissons",
-            "water,cola,fanta,sprite,sap,sinaasappel,limonade,frisdrank,koffie,thee,eau,jus,café,thé,juice,coffee,tea,soda,drink,energy"
+            "water,cola,fanta,sprite,sap,sinaasappel,limonade,frisdrank,koffie,thee,eau,jus,café,thé,juice,coffee,tea,soda,drink,energy,blikjes,oasis,ice tea,fuze,nescafé,senseo,dolce gusto,tassimo,capsules"
         );
 
         upsertCategory("bier", "Beer", "Bier", "Bière",
@@ -127,11 +131,11 @@ public class DataInitService {
         );
 
         upsertCategory("huishouden", "Household", "Huishouden", "Ménage",
-            "wasmiddel,afwasmiddel,toiletpapier,keukenpapier,vaatwas,doekjes,sponzen,lessive,nettoyage,papier,detergent,cleaning,paper,dishwasher,laundry"
+            "wasmiddel,afwasmiddel,toiletpapier,keukenpapier,vaatwas,doekjes,sponzen,lessive,nettoyage,papier,detergent,cleaning,paper,dishwasher,laundry,wasverzachter,geurbooster,wasgel,waspoeder,pods,capsules,tabs,opbergdozen,opberg,strijken,stoomcentrale,droger"
         );
 
         upsertCategory("schoonmaak", "Cleaning", "Schoonmaak", "Nettoyage",
-            "schoonmaak,reiniger,bleek,allesreiniger,glasreiniger,ontkalker,cleaning,cleaner"
+            "schoonmaak,reiniger,bleek,allesreiniger,glasreiniger,ontkalker,cleaning,cleaner,toiletblok,toiletreiniger,wc-blok,wcblok,ontstopper,ontvetter,desinfectie,doekjes"
         );
 
         upsertCategory("verzorging", "Personal Care", "Verzorging", "Soins personnels",
@@ -148,6 +152,34 @@ public class DataInitService {
 
         upsertCategory("kruiden", "Herbs & Spices", "Kruiden", "Épices",
             "kruiden,specerijen,peper,zout,kaneel,paprika,curry,herbs,spices,épices"
+        );
+
+        upsertCategory("kleding", "Clothing", "Kleding", "Vêtements",
+            "t-shirt,tshirt,boxer,boxers,slip,sokken,jas,broek,jurk,trui,hemd,pyjama,lingerie,ondergoed,panty,kousen,schoenen,vêtements,chaussures,clothing,shoes,pants,shirt,dress,jeans,sweater,jacket"
+        );
+
+        upsertCategory("elektronica", "Electronics", "Elektronica", "Électronique",
+            "televisie,smartphone,tablet,laptop,computer,printer,koptelefoon,headphone,speaker,kabel,usb,hdmi,bluetooth,wifi,camera,drone,monitor,toetsenbord,muis,gaming,console,écran,ordinateur,electronics"
+        );
+
+        upsertCategory("keuken", "Kitchen", "Keuken & Apparaten", "Cuisine",
+            "koffiemachine,koffiezetapparaat,blender,mixer,broodrooster,waterkoker,magnetron,oven,pan,kookpot,keukenmachine,airfryer,cuisine,appareil,kitchen,appliance,stofzuiger,stoomcentrale"
+        );
+
+        upsertCategory("tuin", "Garden & Outdoor", "Tuin & Buiten", "Jardin",
+            "tuin,plant,bloem,zaden,gazon,barbecue,bbq,tuinmeubilair,parasol,zwembad,tent,koepeltent,camping,outdoor,jardin,garden,gras,slang,snoeischaar"
+        );
+
+        upsertCategory("vrije-tijd", "Leisure", "Vrije Tijd", "Loisirs",
+            "pretpark,walibi,bellewaerde,bobbejaanland,plopsaland,bioscoop,cinema,tickets,speelgoed,puzzel,spel,boek,magazine,sport,fiets,loisirs,leisure,entertainment"
+        );
+
+        upsertCategory("doe-het-zelf", "DIY", "Doe-het-zelf", "Bricolage",
+            "boor,schroef,moer,verf,kwast,hamer,tang,zaag,schroevendraaier,accuboormachine,slagschroevendraaier,garagekrik,gereedschap,lamp,werklamp,bricolage,tools,drill,paint"
+        );
+
+        upsertCategory("auto", "Automotive", "Auto", "Auto",
+            "auto,motorolie,bandenspanning,zekering,ruitenwisser,autoshampoo,dashcam,parkeer,voiture,automobile,car,battery,automotive"
         );
 
         upsertCategory("andere", "Other", "Andere", "Autres",

@@ -1,7 +1,9 @@
 package be.dealfinder.resource;
 
+import be.dealfinder.service.GraphQLCache;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -21,6 +23,9 @@ public class FlyerResource {
 
     private static final String GRAPHQL_URL = "https://api.jafolders.com/graphql";
     private static final String CONTEXT_HEADER = "myshopi;nl;web;1;1";
+
+    @Inject
+    GraphQLCache cache;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -133,15 +138,26 @@ public class FlyerResource {
     }
 
     private JsonNode executeQuery(String query, String rootField) throws Exception {
-        String body = mapper.writeValueAsString(Map.of("query", query));
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GRAPHQL_URL))
-                .header("Content-Type", "application/json")
-                .header("jafolders-context", CONTEXT_HEADER)
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        JsonNode root = mapper.readTree(response.body());
+        String cacheKey = "flyer:" + rootField + ":" + query.hashCode();
+        String cached = cache.get(cacheKey);
+        String responseBody;
+
+        if (cached != null) {
+            responseBody = cached;
+        } else {
+            String body = mapper.writeValueAsString(Map.of("query", query));
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(GRAPHQL_URL))
+                    .header("Content-Type", "application/json")
+                    .header("jafolders-context", CONTEXT_HEADER)
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            responseBody = response.body();
+            cache.put(cacheKey, responseBody, 60);
+        }
+
+        JsonNode root = mapper.readTree(responseBody);
         if (root.has("errors") && !root.path("errors").isEmpty()) {
             throw new RuntimeException(root.path("errors").get(0).path("message").asText());
         }

@@ -1,7 +1,9 @@
 package be.dealfinder.resource;
 
+import be.dealfinder.service.GraphQLCache;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -22,6 +24,9 @@ public class OptimizerResource {
 
     private static final String GRAPHQL_URL = "https://api.jafolders.com/graphql";
     private static final String CONTEXT_HEADER = "myshopi;nl;web;1;1";
+
+    @Inject
+    GraphQLCache cache;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -112,15 +117,26 @@ public class OptimizerResource {
                 "variables", mapper.readTree(mapper.writeValueAsString(Map.of("s", searchTerm)))
         ));
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GRAPHQL_URL))
-                .header("Content-Type", "application/json")
-                .header("jafolders-context", CONTEXT_HEADER)
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+        String cacheKey = "optim:" + searchTerm.toLowerCase();
+        String cached = cache.get(cacheKey);
+        String responseBody;
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        JsonNode root = mapper.readTree(response.body());
+        if (cached != null) {
+            responseBody = cached;
+        } else {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(GRAPHQL_URL))
+                    .header("Content-Type", "application/json")
+                    .header("jafolders-context", CONTEXT_HEADER)
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            responseBody = response.body();
+            cache.put(cacheKey, responseBody, 30);
+        }
+
+        JsonNode root = mapper.readTree(responseBody);
 
         List<Map<String, Object>> results = new ArrayList<>();
         for (JsonNode offer : root.path("data").path("offers")) {

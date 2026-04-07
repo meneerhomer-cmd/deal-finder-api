@@ -1,7 +1,9 @@
 package be.dealfinder.resource;
 
+import be.dealfinder.service.GraphQLCache;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -35,6 +37,9 @@ public class SearchResource {
           }
         }
         """;
+
+    @Inject
+    GraphQLCache cache;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -81,15 +86,26 @@ public class SearchResource {
                 "variables", mapper.readTree(variables)
         ));
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GRAPHQL_URL))
-                .header("Content-Type", "application/json")
-                .header("jafolders-context", CONTEXT_HEADER)
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+        String cacheKey = "search:" + searchTerm.toLowerCase() + ":" + limit;
+        String cached = cache.get(cacheKey);
+        String responseBody;
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        JsonNode root = mapper.readTree(response.body());
+        if (cached != null) {
+            responseBody = cached;
+        } else {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(GRAPHQL_URL))
+                    .header("Content-Type", "application/json")
+                    .header("jafolders-context", CONTEXT_HEADER)
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            responseBody = response.body();
+            cache.put(cacheKey, responseBody, 30);
+        }
+
+        JsonNode root = mapper.readTree(responseBody);
 
         if (root.has("errors") && !root.path("errors").isEmpty()) {
             throw new RuntimeException(root.path("errors").get(0).path("message").asText());

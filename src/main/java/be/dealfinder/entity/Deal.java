@@ -60,6 +60,11 @@ public class Deal extends PanacheEntity {
     public String unitPrice;
     public String brand;
     public String conditions;
+    public String minPurchase;
+    public String variants;
+    public String loyaltyCard;
+    public String department;
+    public String validDays;
 
     // === Computed Properties ===
 

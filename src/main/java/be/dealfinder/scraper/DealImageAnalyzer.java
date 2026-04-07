@@ -41,11 +41,16 @@ public class DealImageAnalyzer {
     private static final String ANALYSIS_PROMPT = """
         Analyze this Belgian supermarket promotional flyer image. Extract ONLY these fields as JSON:
         {
-          "dealType": "exact promotional text, e.g. '1+1 gratis', '2+2 gratis naar keuze', '2e halve prijs', '3 voor €5', '-30%', or null if no deal type visible",
+          "dealType": "exact promotional text, e.g. '1+1 gratis', '2+2 gratis naar keuze', '2e halve prijs', '3 voor €5', '-30%', or null if no deal visible",
           "quantity": "e.g. '4 stuks', '6 x 165g', '±1,2 kg', or null",
           "unitPrice": "e.g. '4.80/kg', 'per kilo', 'per liter', or null",
           "brand": "brand name if visible, or null",
-          "conditions": "e.g. 'naar keuze', 'met klantenkaart', 'alle soorten', or null"
+          "conditions": "e.g. 'naar keuze', 'alle soorten', or null",
+          "minPurchase": "minimum buy requirement, e.g. 'vanaf 2 stuks', 'per 3 kopen', or null",
+          "variants": "e.g. 'alle soorten', 'verschillende smaken', 'alle kleuren', or null",
+          "loyaltyCard": "loyalty card required? e.g. 'met Xtra-kaart', 'met klantenkaart', 'met Carrefour-kaart', or null if none needed",
+          "department": "store department if mentioned, e.g. 'in de braadafdeling', 'vers', 'diepvries', or null",
+          "validDays": "day restrictions if shown, e.g. 'van maandag tot woensdag', 'alleen dit weekend', or null"
         }
         Return ONLY the JSON, no other text.
         """;
@@ -98,7 +103,12 @@ public class DealImageAnalyzer {
                     textOrNull(info, "quantity"),
                     textOrNull(info, "unitPrice"),
                     textOrNull(info, "brand"),
-                    textOrNull(info, "conditions")
+                    textOrNull(info, "conditions"),
+                    textOrNull(info, "minPurchase"),
+                    textOrNull(info, "variants"),
+                    textOrNull(info, "loyaltyCard"),
+                    textOrNull(info, "department"),
+                    textOrNull(info, "validDays")
             ));
 
         } catch (Exception e) {
@@ -127,6 +137,11 @@ public class DealImageAnalyzer {
             String quantity,
             String unitPrice,
             String brand,
-            String conditions
+            String conditions,
+            String minPurchase,
+            String variants,
+            String loyaltyCard,
+            String department,
+            String validDays
     ) {}
 }

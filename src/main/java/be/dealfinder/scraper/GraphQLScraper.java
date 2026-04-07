@@ -193,6 +193,11 @@ public class GraphQLScraper {
                 deal.unitPrice = info.unitPrice();
                 deal.brand = info.brand();
                 deal.conditions = info.conditions();
+                deal.minPurchase = info.minPurchase();
+                deal.variants = info.variants();
+                deal.loyaltyCard = info.loyaltyCard();
+                deal.department = info.department();
+                deal.validDays = info.validDays();
             });
         }
 

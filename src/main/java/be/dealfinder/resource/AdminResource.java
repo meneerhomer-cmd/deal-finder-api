@@ -32,8 +32,6 @@ public class AdminResource {
         var status = scraperService.getStatus();
         return Response.ok(Map.of(
                 "message", "Scrape completed",
-                "added", status.totalDealsAdded(),
-                "updated", status.totalDealsUpdated(),
                 "results", status.lastResults()
         )).build();
     }

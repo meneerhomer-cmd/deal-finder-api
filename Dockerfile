@@ -7,11 +7,11 @@ RUN mvn dependency:go-offline -B 2>/dev/null || true
 
 COPY src src
 RUN mvn package -Dquarkus.package.type=uber-jar -DskipTests -B \
-    -Dquarkus.datasource.db-kind=h2 \
-    -Dquarkus.datasource.jdbc.url=jdbc:h2:mem:dealfinder \
-    -Dquarkus.datasource.username=sa \
-    -Dquarkus.datasource.password= \
-    -Dquarkus.hibernate-orm.database.generation=update
+    -Dquarkus.datasource.db-kind=postgresql \
+    -Dquarkus.datasource.jdbc.url=jdbc:postgresql://localhost/unused \
+    -Dquarkus.datasource.username=unused \
+    -Dquarkus.datasource.password=unused \
+    -Dquarkus.hibernate-orm.database.generation=none
 
 FROM eclipse-temurin:21-jre-alpine
 

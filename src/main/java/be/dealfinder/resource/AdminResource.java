@@ -10,7 +10,6 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 @Path("/api/v1/admin")
 @Produces(MediaType.APPLICATION_JSON)
@@ -22,15 +21,21 @@ public class AdminResource {
 
     @POST
     @Path("/scrape")
-    @Operation(summary = "Trigger a full scrape of all retailers (async)")
+    @Operation(summary = "Trigger a full scrape of all retailers")
     public Response scrapeAll() {
         if (scraperService.getStatus().running()) {
             return Response.status(Response.Status.CONFLICT)
                     .entity(Map.of("message", "Scrape already in progress"))
                     .build();
         }
-        CompletableFuture.runAsync(scraperService::scrapeAll);
-        return Response.accepted(Map.of("message", "Scrape started. Check GET /status for progress.")).build();
+        scraperService.scrapeAll();
+        var status = scraperService.getStatus();
+        return Response.ok(Map.of(
+                "message", "Scrape completed",
+                "added", status.totalDealsAdded(),
+                "updated", status.totalDealsUpdated(),
+                "results", status.lastResults()
+        )).build();
     }
 
     @POST

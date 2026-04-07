@@ -54,6 +54,13 @@ public class Deal extends PanacheEntity {
     @Column(unique = true)
     public String externalId;
 
+    // Image analysis fields (populated by DealImageAnalyzer)
+    public String dealType;
+    public String quantity;
+    public String unitPrice;
+    public String brand;
+    public String conditions;
+
     // === Computed Properties ===
 
     @Transient

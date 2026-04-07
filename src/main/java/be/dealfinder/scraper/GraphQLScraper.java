@@ -7,6 +7,7 @@ import be.dealfinder.entity.Retailer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -29,6 +30,9 @@ public class GraphQLScraper {
     private static final String GRAPHQL_URL = "https://api.jafolders.com/graphql";
     private static final String CONTEXT_HEADER = "myshopi;nl;web;1;1";
 
+    @Inject
+    DealImageAnalyzer imageAnalyzer;
+
     private static final String OFFERS_QUERY = """
         query($shopSlug: String!, $limit: Int!, $offset: Int!) {
           offers(offers: { shopSlug: $shopSlug }, pagination: { limit: $limit, offset: $offset }) {
@@ -42,6 +46,11 @@ public class GraphQLScraper {
             expireAfter
             brandName
             description
+            hotspot {
+              ... on HotspotProductEntity {
+                fileUrl(version: ORIGINAL)
+              }
+            }
           }
         }
         """;
@@ -168,12 +177,25 @@ public class GraphQLScraper {
             return new int[]{0, 1};
         }
 
+        String hotspotImageUrl = offer.path("hotspot").path("fileUrl").asText(null);
+
         Deal deal = Deal.create(
                 name, retailer, priceAfter, priceBefore, discount,
                 validFrom != null ? validFrom : LocalDate.now(), validUntil,
-                null, null, externalId
+                hotspotImageUrl, null, externalId
         );
         deal.category = category;
+
+        if (hotspotImageUrl != null) {
+            imageAnalyzer.analyze(hotspotImageUrl).ifPresent(info -> {
+                deal.dealType = info.dealType();
+                deal.quantity = info.quantity();
+                deal.unitPrice = info.unitPrice();
+                deal.brand = info.brand();
+                deal.conditions = info.conditions();
+            });
+        }
+
         deal.persist();
         PriceHistory.create(deal).persist();
         return new int[]{1, 0};

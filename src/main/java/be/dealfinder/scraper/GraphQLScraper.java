@@ -99,35 +99,51 @@ public class GraphQLScraper {
     }
 
     private List<JsonNode> fetchOffers(String shopSlug) throws Exception {
-        String variables = mapper.writeValueAsString(Map.of(
-                "shopSlug", shopSlug,
-                "limit", 500,
-                "offset", 0
-        ));
+        List<JsonNode> allOffers = new ArrayList<>();
+        int offset = 0;
+        int pageSize = 24;
 
-        String body = mapper.writeValueAsString(Map.of(
-                "query", OFFERS_QUERY,
-                "variables", mapper.readTree(variables)
-        ));
+        while (true) {
+            String variables = mapper.writeValueAsString(Map.of(
+                    "shopSlug", shopSlug,
+                    "limit", 500,
+                    "offset", offset
+            ));
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GRAPHQL_URL))
-                .header("Content-Type", "application/json")
-                .header("jafolders-context", CONTEXT_HEADER)
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+            String body = mapper.writeValueAsString(Map.of(
+                    "query", OFFERS_QUERY,
+                    "variables", mapper.readTree(variables)
+            ));
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        JsonNode root = mapper.readTree(response.body());
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(GRAPHQL_URL))
+                    .header("Content-Type", "application/json")
+                    .header("jafolders-context", CONTEXT_HEADER)
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
 
-        if (root.has("errors") && !root.get("errors").isEmpty()) {
-            throw new RuntimeException("GraphQL error: " + root.get("errors").get(0).get("message").asText());
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            JsonNode root = mapper.readTree(response.body());
+
+            if (root.has("errors") && !root.get("errors").isEmpty()) {
+                throw new RuntimeException("GraphQL error: " + root.get("errors").get(0).get("message").asText());
+            }
+
+            JsonNode offers = root.path("data").path("offers");
+            int count = 0;
+            for (JsonNode offer : offers) {
+                allOffers.add(offer);
+                count++;
+            }
+
+            if (count < pageSize) break;
+            offset += pageSize;
+            if (offset > 2000) break;
+            Thread.sleep(200);
         }
 
-        JsonNode offers = root.path("data").path("offers");
-        List<JsonNode> result = new ArrayList<>();
-        offers.forEach(result::add);
-        return result;
+        LOG.info("Fetched " + allOffers.size() + " offers for " + shopSlug);
+        return allOffers;
     }
 
     @Transactional

@@ -64,13 +64,28 @@
             <version>1.21.0</version>
         </dependency>
 
-        <!-- Force a newer google-auth-library so firebase-admin's older pin
-             doesn't break the Cloud SQL socket factory, which needs
-             com.google.auth.CredentialTypeForMetrics (added in 1.26+). -->
+        <!-- Force newer Google client libraries so firebase-admin's older
+             pins don't break the Cloud SQL socket factory and Firestore Java
+             client (both need recent google-auth-library + gax). -->
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
             <version>1.45.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.api</groupId>
+            <artifactId>gax</artifactId>
+            <version>2.80.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.api</groupId>
+            <artifactId>gax-grpc</artifactId>
+            <version>2.80.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.api</groupId>
+            <artifactId>gax-httpjson</artifactId>
+            <version>2.80.0</version>
         </dependency>
 
         <!-- Scheduling -->

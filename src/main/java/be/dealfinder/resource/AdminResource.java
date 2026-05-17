@@ -3,6 +3,7 @@ package be.dealfinder.resource;
 import be.dealfinder.entity.Deal;
 import be.dealfinder.scraper.DealImageAnalyzer;
 import be.dealfinder.scraper.GraphQLScraper;
+import be.dealfinder.service.NotificationService;
 import be.dealfinder.service.ScraperService;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -29,6 +30,9 @@ public class AdminResource {
 
     @Inject
     DealImageAnalyzer imageAnalyzer;
+
+    @Inject
+    NotificationService notificationService;
 
     @POST
     @Path("/scrape")
@@ -92,6 +96,22 @@ public class AdminResource {
                 "analyzed", analyzed,
                 "failed", failed,
                 "remaining", remaining
+        )).build();
+    }
+
+    @POST
+    @Path("/test-notification")
+    @Operation(summary = "Send a test FCM push to every registered token for a given user UID")
+    public Response testNotification(@QueryParam("uid") String uid) {
+        if (uid == null || uid.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "uid query parameter is required"))
+                    .build();
+        }
+        int sent = notificationService.sendTestPush(uid);
+        return Response.ok(Map.of(
+                "uid", uid,
+                "sent", sent
         )).build();
     }
 

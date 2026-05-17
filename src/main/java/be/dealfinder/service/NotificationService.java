@@ -35,6 +35,43 @@ public class NotificationService {
     @Inject
     FcmService fcm;
 
+    /**
+     * Send a test push to every fcmToken under users/{uid}/fcmTokens.
+     * Bypasses brand/watchlist matching — useful to verify the end-to-end
+     * device-delivery path without waiting for a matching scrape.
+     * Returns the number of pushes attempted that did not fail.
+     */
+    public int sendTestPush(String uid) {
+        if (uid == null || uid.isBlank()) return 0;
+        if (FirebaseApp.getApps().isEmpty()) {
+            LOG.warn("sendTestPush skipped: Firebase not initialised");
+            return 0;
+        }
+        try {
+            Firestore db = FirestoreClient.getFirestore();
+            List<QueryDocumentSnapshot> tokens = db.collection("users/" + uid + "/fcmTokens").get().get().getDocuments();
+            if (tokens.isEmpty()) {
+                LOG.info("sendTestPush: no fcmTokens for uid " + uid);
+                return 0;
+            }
+            int sent = 0;
+            for (QueryDocumentSnapshot t : tokens) {
+                if (fcm.sendToToken(
+                        t.getId(),
+                        "Test melding",
+                        "Als je dit ziet, werkt push notifications correct.",
+                        Map.of("type", "test"))) {
+                    sent++;
+                }
+            }
+            LOG.info("sendTestPush done for uid " + uid + ": " + sent + " of " + tokens.size() + " tokens delivered");
+            return sent;
+        } catch (Exception e) {
+            LOG.error("sendTestPush failed for uid " + uid, e);
+            return 0;
+        }
+    }
+
     public void notifyForNewDeals(List<Deal> newDeals) {
         if (newDeals == null || newDeals.isEmpty()) return;
         if (FirebaseApp.getApps().isEmpty()) {

@@ -97,11 +97,16 @@ ShoppingListItem ──→ Deal (by sessionId)
 - [x] Fix greedy discount pattern — fallback now requires discount-related keywords
 
 ### Improve
-- [ ] Add pagination to deal listing endpoints
-- [ ] Improve scraper yield (myShopi hidden API? Playwright?)
+- [x] Improve scraper yield — paginate GraphQL offers, May 17 2026
+- [x] Image-analysis kill switch — `SCRAPER_IMAGE_ANALYSIS` env var, May 17 2026
+- [x] Price history cleanup — `cleanupPriceHistory()` after each scrape, May 17 2026
+- [ ] Add pagination to deal listing endpoints (frontend reads everything in one shot)
 - [ ] Add basic auth on admin endpoints
 - [ ] Add PriceHistory API endpoint
-- [ ] Add tests
+- [ ] Move secrets to Secret Manager (ANTHROPIC_API_KEY, DB password)
+- [ ] Tighten CORS (currently `/.*/`)
+- [ ] Enable Cloud SQL automated backups
+- [ ] Add tests (and replace flaky `AdminResourceTest.triggerScrape_returns202Accepted`)
 
 ### Future
 - [ ] Production deployment (PostgreSQL, Flyway, Railway/Render)

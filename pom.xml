@@ -88,6 +88,13 @@
             <artifactId>quarkus-hibernate-validator</artifactId>
         </dependency>
 
+        <!-- Sentry error monitoring (JBoss Logging bridge) -->
+        <dependency>
+            <groupId>io.quarkiverse.loggingsentry</groupId>
+            <artifactId>quarkus-logging-sentry</artifactId>
+            <version>2.3.1</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>io.quarkus</groupId>

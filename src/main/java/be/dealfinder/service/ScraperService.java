@@ -3,7 +3,6 @@ package be.dealfinder.service;
 import be.dealfinder.entity.PriceHistory;
 import be.dealfinder.entity.Retailer;
 import be.dealfinder.scraper.GraphQLScraper;
-import be.dealfinder.scraper.GraphQLScraper;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

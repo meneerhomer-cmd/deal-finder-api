@@ -64,6 +64,15 @@
             <version>1.21.0</version>
         </dependency>
 
+        <!-- Force a newer google-auth-library so firebase-admin's older pin
+             doesn't break the Cloud SQL socket factory, which needs
+             com.google.auth.CredentialTypeForMetrics (added in 1.26+). -->
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>1.45.0</version>
+        </dependency>
+
         <!-- Scheduling -->
         <dependency>
             <groupId>io.quarkus</groupId>

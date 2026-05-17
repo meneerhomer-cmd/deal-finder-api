@@ -13,6 +13,7 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -67,12 +68,12 @@ public class AdminResource {
 
     @POST
     @Path("/backfill-images")
-    @Operation(summary = "Run image analysis on existing deals that haven't been analyzed yet")
+    @Operation(summary = "Run image analysis on existing active deals that haven't been analyzed yet")
     public Response backfillImages(@QueryParam("limit") @DefaultValue("50") int limit) {
-        List<Deal> candidates = Deal.find("brand is null and imageUrl is not null")
-                .page(0, limit)
-                .list();
-        LOG.info("Image backfill: " + candidates.size() + " candidates");
+        LocalDate today = LocalDate.now();
+        String query = "brand is null and imageUrl is not null and validUntil >= ?1";
+        List<Deal> candidates = Deal.find(query, today).page(0, limit).list();
+        LOG.info("Image backfill: " + candidates.size() + " active candidates");
 
         int analyzed = 0;
         int failed = 0;
@@ -85,7 +86,7 @@ public class AdminResource {
             }
         }
 
-        long remaining = Deal.count("brand is null and imageUrl is not null") - analyzed;
+        long remaining = Deal.count(query, today) - analyzed;
         LOG.info("Image backfill done: analyzed=" + analyzed + " failed=" + failed + " remaining=" + remaining);
         return Response.ok(Map.of(
                 "analyzed", analyzed,

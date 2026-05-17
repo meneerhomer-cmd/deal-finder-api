@@ -59,7 +59,7 @@ public class DataInitService {
 
         // Slugs use Dutch names to match the frontend app categories
         upsertCategory("vlees", "Meat", "Vlees", "Viande",
-            "vlees,kip,kipfilet,kippenbout,rund,rundvlees,varken,varkensvlees,gehakt,worst,ham,bacon,steak,kotelet,poulet,boeuf,porc,viande,chicken,beef,pork,meat,sausage"
+            "vlees,kip,kipfilet,kippenbout,kipnugget,rund,rundvlees,varken,varkensvlees,gehakt,gehaktbal,worst,ham,bacon,steak,kotelet,poulet,boeuf,porc,viande,chicken,beef,pork,meat,sausage,chateaubriand,rumsteak,filet pur,brochette"
         );
 
         upsertCategory("charcuterie", "Charcuterie", "Charcuterie", "Charcuterie",
@@ -67,11 +67,11 @@ public class DataInitService {
         );
 
         upsertCategory("vis", "Fish & Seafood", "Vis & Zeevruchten", "Poisson & Fruits de mer",
-            "vis,zalm,kabeljauw,garnaal,garnalen,tonijn,mosselen,scampi,haring,makreel,forel,poisson,saumon,crevettes,moules,thon,fish,salmon,shrimp,tuna,seafood"
+            "zalm,kabeljauw,garnaal,garnalen,tonijn,mosselen,scampi,haring,makreel,forel,poisson,saumon,crevettes,moules,thon,fish,salmon,shrimp,tuna,seafood,visfilet,visstick"
         );
 
         upsertCategory("zuivel", "Dairy", "Zuivel", "Produits laitiers",
-            "melk,yoghurt,boter,room,kwark,cottage,mozzarella,cheddar,gouda,emmental,lait,yaourt,beurre,crème,milk,yogurt,butter,cream,dairy"
+            "melk,yoghurt,boter,room,kwark,cottage,mozzarella,cheddar,gouda,emmental,lait,yaourt,beurre,crème,milk,yogurt,butter,cream,dairy,danio,danone,actimel,activia"
         );
 
         upsertCategory("kaas", "Cheese", "Kaas", "Fromage",
@@ -79,7 +79,7 @@ public class DataInitService {
         );
 
         upsertCategory("dranken", "Drinks", "Dranken", "Boissons",
-            "water,cola,fanta,sprite,sap,sinaasappel,limonade,frisdrank,koffie,thee,eau,jus,café,thé,juice,coffee,tea,soda,drink,energy,blikjes,oasis,ice tea,fuze,nescafé,senseo,dolce gusto,tassimo,capsules"
+            "water,cola,coca-cola,fanta,sprite,sap,sinaasappel,limonade,frisdrank,koffie,thee,eau minérale,jus de,café,thé,juice,coffee,tea,soda,drink,energy,blikjes,oasis,ice tea,fuze,nescafé,senseo,dolce gusto,tassimo,capsules,sportlife,fruities,pepsi,7up,red bull"
         );
 
         upsertCategory("bier", "Beer", "Bier", "Bière",
@@ -87,11 +87,11 @@ public class DataInitService {
         );
 
         upsertCategory("wijn", "Wine", "Wijn", "Vin",
-            "wijn,rosé,champagne,prosecco,cava,vin,wine,blanc,rouge"
+            "wijn,rosé,champagne,prosecco,cava,wine,vin rouge,vin blanc,sauvignon,chardonnay,merlot,cabernet,pinot,rioja,bordeaux,bourgogne"
         );
 
         upsertCategory("snoep", "Snacks & Sweets", "Snoep", "Bonbons",
-            "chocolade,koekjes,snoep,noten,crackers,chocolat,biscuits,bonbons,noix,chocolate,cookies,candy,nuts"
+            "chocolade,koekjes,snoep,noten,crackers,chocolat,biscuits,bonbons,noix,chocolate,cookies,candy,nuts,biscoff,minichocolade,pralines,snoepjes,lolly"
         );
 
         upsertCategory("chips", "Chips & Crisps", "Chips", "Chips",
@@ -99,7 +99,7 @@ public class DataInitService {
         );
 
         upsertCategory("ontbijt", "Breakfast", "Ontbijt", "Petit-déjeuner",
-            "cornflakes,muesli,ontbijt,cereals,granola,haver,havermout,confituur,honing,nutella,choco,céréales,breakfast"
+            "cornflakes,muesli,ontbijt,cereals,granola,haver,havermout,confituur,honing,nutella,choco,céréales,breakfast,porridge,ontbijtgranen,spread"
         );
 
         upsertCategory("brood", "Bread & Bakery", "Brood", "Pain",
@@ -139,7 +139,7 @@ public class DataInitService {
         );
 
         upsertCategory("verzorging", "Personal Care", "Verzorging", "Soins personnels",
-            "shampoo,tandpasta,deo,deodorant,douche,zeep,scheermesjes,bodylotion,gezicht,huid,dentifrice,savon,rasoir,toothpaste,soap,shower,razor,skincare"
+            "shampoo,tandpasta,deo,deodorant,douche,zeep,scheermesjes,bodylotion,gezicht,huid,dentifrice,savon,rasoir,toothpaste,soap,shower,razor,skincare,listerine,mondwater,mondspoeling,tandenborstel,tandzijde,floss,conditioner,haarverzorging,crème,zonnecreme,sunscreen,aftershave,parfum,eau de toilette"
         );
 
         upsertCategory("baby", "Baby", "Baby", "Bébé",
@@ -163,7 +163,7 @@ public class DataInitService {
         );
 
         upsertCategory("keuken", "Kitchen", "Keuken & Apparaten", "Cuisine",
-            "koffiemachine,koffiezetapparaat,blender,mixer,broodrooster,waterkoker,magnetron,oven,pan,kookpot,keukenmachine,airfryer,cuisine,appareil,kitchen,appliance,stofzuiger,stoomcentrale"
+            "koffiemachine,koffiezetapparaat,blender,mixer,broodrooster,waterkoker,magnetron,oven,kookpot,keukenmachine,airfryer,cuisine,appareil,kitchen,appliance,stofzuiger,stoomcentrale,koekenpan,braadpan,steelpan"
         );
 
         upsertCategory("tuin", "Garden & Outdoor", "Tuin & Buiten", "Jardin",
@@ -179,7 +179,7 @@ public class DataInitService {
         );
 
         upsertCategory("auto", "Automotive", "Auto", "Auto",
-            "auto,motorolie,bandenspanning,zekering,ruitenwisser,autoshampoo,dashcam,parkeer,voiture,automobile,car,battery,automotive"
+            "motorolie,bandenspanning,zekering,ruitenwisser,autoshampoo,dashcam,parkeer,voiture,automobile,automotive,auto-accessoire"
         );
 
         upsertCategory("andere", "Other", "Andere", "Autres",

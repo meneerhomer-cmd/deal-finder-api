@@ -29,6 +29,16 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Google Cloud BOM: aligns google-auth, gax, grpc, protobuf, etc.
+                 across firebase-admin and Cloud SQL socket factory. Must come
+                 AFTER quarkus-bom so its versions win for Google libs. -->
+            <dependency>
+                <groupId>com.google.cloud</groupId>
+                <artifactId>libraries-bom</artifactId>
+                <version>26.83.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -64,28 +74,13 @@
             <version>1.21.0</version>
         </dependency>
 
-        <!-- Force newer Google client libraries so firebase-admin's older
-             pins don't break the Cloud SQL socket factory and Firestore Java
-             client (both need recent google-auth-library + gax). -->
+        <!-- Versions for google-auth-library, gax, protobuf, grpc, etc. all
+             managed by com.google.cloud:libraries-bom in dependencyManagement
+             above. No explicit versions needed here; firebase-admin and the
+             Cloud SQL socket factory now share a coherent set. -->
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
-            <version>1.45.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.api</groupId>
-            <artifactId>gax</artifactId>
-            <version>2.80.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.api</groupId>
-            <artifactId>gax-grpc</artifactId>
-            <version>2.80.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.api</groupId>
-            <artifactId>gax-httpjson</artifactId>
-            <version>2.80.0</version>
         </dependency>
 
         <!-- Scheduling -->

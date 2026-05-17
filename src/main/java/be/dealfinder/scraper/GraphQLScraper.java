@@ -69,7 +69,7 @@ public class GraphQLScraper {
 
     public GraphQLScraper.ScraperResult scrapeRetailer(Retailer retailer) {
         if (!enabled) {
-            return new GraphQLScraper.ScraperResult(retailer.slug, 0, 0, "Scraper disabled");
+            return new GraphQLScraper.ScraperResult(retailer.slug, 0, 0, "Scraper disabled", List.of());
         }
 
         LOG.info("GraphQL scrape starting for " + retailer.name);
@@ -81,10 +81,11 @@ public class GraphQLScraper {
 
             int added = 0;
             int updated = 0;
+            List<Long> newDealIds = new ArrayList<>();
 
             for (JsonNode offer : allOffers) {
                 try {
-                    int[] result = processOffer(offer, retailer, categories);
+                    int[] result = processOffer(offer, retailer, categories, newDealIds);
                     added += result[0];
                     updated += result[1];
                 } catch (Exception e) {
@@ -93,11 +94,11 @@ public class GraphQLScraper {
             }
 
             LOG.info("GraphQL scrape complete for " + retailer.name + ": " + added + " added, " + updated + " updated");
-            return new GraphQLScraper.ScraperResult(retailer.slug, added, updated, null);
+            return new GraphQLScraper.ScraperResult(retailer.slug, added, updated, null, newDealIds);
 
         } catch (Exception e) {
             LOG.error("GraphQL scrape failed for " + retailer.name + ": " + e.getMessage(), e);
-            return new GraphQLScraper.ScraperResult(retailer.slug, 0, 0, e.getMessage());
+            return new GraphQLScraper.ScraperResult(retailer.slug, 0, 0, e.getMessage(), List.of());
         }
     }
 
@@ -150,7 +151,7 @@ public class GraphQLScraper {
     }
 
     @Transactional
-    int[] processOffer(JsonNode offer, Retailer retailer, List<Category> categories) {
+    int[] processOffer(JsonNode offer, Retailer retailer, List<Category> categories, List<Long> newDealIds) {
         String name = offer.path("name").asText(null);
         if (name == null || name.length() < 3) return new int[]{0, 0};
 
@@ -222,6 +223,7 @@ public class GraphQLScraper {
 
         deal.persist();
         PriceHistory.create(deal).persist();
+        newDealIds.add(deal.id);
         return new int[]{1, 0};
     }
 
@@ -264,7 +266,7 @@ public class GraphQLScraper {
         }
     }
 
-    public record ScraperResult(String retailerSlug, int added, int updated, String error) {
+    public record ScraperResult(String retailerSlug, int added, int updated, String error, List<Long> newDealIds) {
         public boolean isSuccess() {
             return error == null || error.isBlank();
         }

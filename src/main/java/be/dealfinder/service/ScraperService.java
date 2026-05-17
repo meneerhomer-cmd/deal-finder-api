@@ -1,5 +1,6 @@
 package be.dealfinder.service;
 
+import be.dealfinder.entity.Deal;
 import be.dealfinder.entity.PriceHistory;
 import be.dealfinder.entity.Retailer;
 import be.dealfinder.scraper.GraphQLScraper;
@@ -26,6 +27,9 @@ public class ScraperService {
 
     @Inject
     DealService dealService;
+
+    @Inject
+    NotificationService notificationService;
 
     @ConfigProperty(name = "scraper.enabled", defaultValue = "true")
     boolean enabled;
@@ -83,6 +87,15 @@ public class ScraperService {
 
             cleanupPriceHistory();
 
+            // Fan out push notifications for newly-added deals
+            List<Long> allNewIds = lastResults.stream()
+                    .flatMap(r -> r.newDealIds().stream())
+                    .toList();
+            if (!allNewIds.isEmpty()) {
+                List<Deal> newDeals = Deal.list("id in ?1", allNewIds);
+                notificationService.notifyForNewDeals(newDeals);
+            }
+
             LOG.info("Full scrape completed: " + totalAdded + " added, " + totalUpdated + " updated");
             return lastResults;
 
@@ -94,11 +107,11 @@ public class ScraperService {
     public GraphQLScraper.ScraperResult scrapeRetailer(String retailerSlug) {
         Retailer retailer = Retailer.findBySlug(retailerSlug);
         if (retailer == null) {
-            return new GraphQLScraper.ScraperResult(retailerSlug, 0, 0, "Retailer not found");
+            return new GraphQLScraper.ScraperResult(retailerSlug, 0, 0, "Retailer not found", List.of());
         }
 
         if (!retailer.active) {
-            return new GraphQLScraper.ScraperResult(retailerSlug, 0, 0, "Retailer is inactive");
+            return new GraphQLScraper.ScraperResult(retailerSlug, 0, 0, "Retailer is inactive", List.of());
         }
 
         return graphQLScraper.scrapeRetailer(retailer);

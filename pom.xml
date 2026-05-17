@@ -95,6 +95,13 @@
             <version>2.3.1</version>
         </dependency>
 
+        <!-- Firebase Admin SDK: Firestore reads + FCM push send -->
+        <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>9.9.0</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>io.quarkus</groupId>

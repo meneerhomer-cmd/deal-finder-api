@@ -74,13 +74,20 @@
             <version>1.21.0</version>
         </dependency>
 
-        <!-- Versions for google-auth-library, gax, protobuf, grpc, etc. all
-             managed by com.google.cloud:libraries-bom in dependencyManagement
-             above. No explicit versions needed here; firebase-admin and the
-             Cloud SQL socket factory now share a coherent set. -->
+        <!-- Versions for google-auth-library, gax, grpc, etc. managed by
+             com.google.cloud:libraries-bom in dependencyManagement above. -->
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
+        </dependency>
+        <!-- Force protobuf-java 4.x (libraries-bom would pick this but
+             quarkus-bom's 3.25.5 pin wins via dependencyManagement order.
+             Firestore Java client needs RuntimeVersion$RuntimeDomain which
+             only exists in protobuf-java 4+. Quarkus runs fine on 4.x. -->
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>4.34.1</version>
         </dependency>
 
         <!-- Scheduling -->

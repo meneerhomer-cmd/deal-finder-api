@@ -61,6 +61,9 @@ public class GraphQLScraper {
     @ConfigProperty(name = "deals.minimum-discount", defaultValue = "20")
     int minimumDiscount;
 
+    @ConfigProperty(name = "scraper.image-analysis.enabled", defaultValue = "true")
+    boolean imageAnalysisEnabled;
+
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -202,7 +205,7 @@ public class GraphQLScraper {
         );
         deal.category = category;
 
-        if (hotspotImageUrl != null) {
+        if (hotspotImageUrl != null && imageAnalysisEnabled) {
             imageAnalyzer.analyze(hotspotImageUrl).ifPresent(info -> {
                 deal.dealType = info.dealType();
                 deal.quantity = info.quantity();

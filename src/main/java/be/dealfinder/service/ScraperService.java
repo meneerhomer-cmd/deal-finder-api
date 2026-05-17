@@ -1,11 +1,13 @@
 package be.dealfinder.service;
 
+import be.dealfinder.entity.PriceHistory;
 import be.dealfinder.entity.Retailer;
 import be.dealfinder.scraper.GraphQLScraper;
 import be.dealfinder.scraper.GraphQLScraper;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -80,6 +82,8 @@ public class ScraperService {
                 LOG.info("Cleaned up " + deleted + " old expired deals");
             }
 
+            cleanupPriceHistory();
+
             LOG.info("Full scrape completed: " + totalAdded + " added, " + totalUpdated + " updated");
             return lastResults;
 
@@ -99,6 +103,14 @@ public class ScraperService {
         }
 
         return graphQLScraper.scrapeRetailer(retailer);
+    }
+
+    @Transactional
+    void cleanupPriceHistory() {
+        long deleted = PriceHistory.deleteOlderThan(90);
+        if (deleted > 0) {
+            LOG.info("Cleaned up " + deleted + " old price history records");
+        }
     }
 
     public ScraperStatus getStatus() {

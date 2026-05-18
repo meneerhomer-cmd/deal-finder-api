@@ -91,13 +91,23 @@ public class DealResource {
     @Operation(summary = "Get deal by ID")
     public Response getDeal(
             @PathParam("id") Long id,
-            
+
             @Parameter(description = "Language: en, nl, fr")
             @QueryParam("lang") @DefaultValue("en") String language
     ) {
         return dealService.findDealById(id, language)
                 .map(deal -> Response.ok(deal).build())
                 .orElse(Response.status(Response.Status.NOT_FOUND).build());
+    }
+
+    @GET
+    @Path("/{id}/cross-retailer-matches")
+    @Operation(summary = "Same product, other retailers, sorted by price ASC")
+    public List<DealDTO> getCrossRetailerMatches(
+            @PathParam("id") Long id,
+            @QueryParam("lang") @DefaultValue("nl") String language
+    ) {
+        return dealService.findCrossRetailerMatches(id, language);
     }
 
     @GET

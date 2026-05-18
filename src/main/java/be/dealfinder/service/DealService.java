@@ -139,6 +139,65 @@ public class DealService {
         return Optional.of(DealDTO.from(deal, lang, low));
     }
 
+    /**
+     * "Same brand at other retailers" panel on the deal-detail page. Originally
+     * tried strict matching on first significant word of productName + quantity
+     * — but retailers describe the same brand's products with wildly different
+     * first words ("Galler chocolade" vs "Chocoladerepen Galler"), so coverage
+     * was 0%. Pivoted to brand-level matching: same brand + different retailer
+     * + (same quantity when source has one). The panel UI is titled "Zelfde
+     * merk bij andere winkels" so this is honest about what's shown.
+     *
+     * Filters out three categories of useless matches:
+     * - source has no brand → no comparison possible
+     * - source brand matches its own retailer name (private label like
+     *   Carrefour-branded products) → won't appear elsewhere by definition
+     * - source brand suffixed with "merk" / "huismerk" (Kruidvat Merk,
+     *   Albert Heijn Huismerk) → same private-label pattern under a
+     *   different naming convention
+     *
+     * Quantity is NOT used as a filter — retailers describe identical
+     * physical packaging with wildly different strings ("4 x 65g of 70g"
+     * vs "4 x 65 g" vs "4 x 70 g" all mean the same 4-pack of Galler
+     * chocolate). Quantity-string matching dropped real cross-retailer
+     * coverage to ~0%. The frontend renders each match's own quantity
+     * so the user can tell pack sizes apart at a glance.
+     */
+    public List<DealDTO> findCrossRetailerMatches(Long dealId, String language) {
+        Deal source = Deal.findById(dealId);
+        if (source == null || source.brand == null || source.retailer == null) {
+            return List.of();
+        }
+        if (isPrivateLabel(source.brand, source.retailer.name)) return List.of();
+
+        List<Deal> matches = Deal.findWithRelations(
+                "LOWER(brand) = LOWER(?1) " +
+                "AND retailer.id != ?2 " +
+                "AND validUntil >= ?3 " +
+                "AND discountPercentage >= ?4",
+                Sort.ascending("currentPrice"),
+                source.brand,
+                source.retailer.id,
+                LocalDate.now().minusDays(expiredVisibleDays),
+                defaultMinDiscount
+        );
+
+        String lang = language != null ? language : "en";
+        Map<PriceHistory.LowestPriceKey, BigDecimal> lows = PriceHistory.findLowestPricesPerProductRetailer();
+        return matches.stream()
+                .map(d -> DealDTO.from(d, lang, lookupLowest(lows, d)))
+                .collect(Collectors.toList());
+    }
+
+    private static boolean isPrivateLabel(String brand, String retailerName) {
+        if (brand == null) return true;
+        String b = brand.toLowerCase().trim();
+        if (b.equalsIgnoreCase(retailerName)) return true;
+        // "Kruidvat Merk", "Albert Heijn Huismerk", "Delhaize 365" etc.
+        if (b.endsWith(" merk") || b.endsWith(" huismerk")) return true;
+        return false;
+    }
+
     public Map<String, List<DealDTO>> findDealsGroupedByRetailer(
             Integer minDiscount,
             String language

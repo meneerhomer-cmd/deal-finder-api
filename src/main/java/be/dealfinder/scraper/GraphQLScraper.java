@@ -176,6 +176,16 @@ public class GraphQLScraper {
 
         if (discount < minimumDiscount) return new int[]{0, 0};
 
+        // Skip mobile-subscription bundle deals. Carrefour publishes phones like "€9
+        // met Smart Data abonnement, per smartphone zonder abonnement: 699€" — the
+        // headline price requires a 24-month telecom contract, so the 98% is theatre.
+        // Heuristic: ≥95% off a ≥€100 item is almost always a bundle in flyer context.
+        if (discount >= 95 && priceBefore != null && priceBefore.compareTo(BigDecimal.valueOf(100)) >= 0) {
+            Deal stale = Deal.findByExternalId(externalId);
+            if (stale != null) stale.delete();
+            return new int[]{0, 0};
+        }
+
         LocalDate validFrom = parseDate(offer.path("activeFrom").asText(null));
         LocalDate validUntil = parseDate(offer.path("expireAfter").asText(null));
         if (validUntil == null) validUntil = LocalDate.now().plusDays(7);

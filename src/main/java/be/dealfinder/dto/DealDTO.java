@@ -32,10 +32,15 @@ public record DealDTO(
     String sourceUrl,
     boolean expired,
     Long daysExpired,
-    boolean expiringSoon
+    boolean expiringSoon,
+    BigDecimal lowestPriceSeen,
+    boolean atLowestPrice
 ) {
-    public static DealDTO from(Deal deal, String language) {
+    public static DealDTO from(Deal deal, String language, BigDecimal lowestPriceSeen) {
         long daysUntilExpiry = ChronoUnit.DAYS.between(LocalDate.now(), deal.validUntil);
+        boolean atLowest = lowestPriceSeen != null
+                && deal.currentPrice != null
+                && deal.currentPrice.compareTo(lowestPriceSeen) <= 0;
         return new DealDTO(
             deal.id,
             deal.productName,
@@ -63,8 +68,14 @@ public record DealDTO(
             deal.sourceUrl,
             deal.isExpired(),
             deal.getDaysExpired(),
-            !deal.isExpired() && daysUntilExpiry <= 2
+            !deal.isExpired() && daysUntilExpiry <= 2,
+            lowestPriceSeen,
+            atLowest
         );
+    }
+
+    public static DealDTO from(Deal deal, String language) {
+        return from(deal, language, null);
     }
 
     private static String detectDealType(BigDecimal currentPrice, BigDecimal originalPrice) {
@@ -78,6 +89,6 @@ public record DealDTO(
     }
 
     public static DealDTO from(Deal deal) {
-        return from(deal, "en");
+        return from(deal, "en", null);
     }
 }

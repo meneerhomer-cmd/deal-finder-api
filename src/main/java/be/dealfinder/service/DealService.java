@@ -4,15 +4,18 @@ import be.dealfinder.dto.DealDTO;
 import be.dealfinder.dto.PagedResponse;
 import be.dealfinder.entity.Category;
 import be.dealfinder.entity.Deal;
+import be.dealfinder.entity.PriceHistory;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -62,8 +65,9 @@ public class DealService {
         List<Deal> deals = Deal.findWithRelations(query.toString(), sort, params.toArray());
 
         String lang = language != null ? language : "en";
+        Map<PriceHistory.LowestPriceKey, BigDecimal> lows = PriceHistory.findLowestPricesPerProductRetailer();
         return deals.stream()
-                .map(deal -> DealDTO.from(deal, lang))
+                .map(deal -> DealDTO.from(deal, lang, lookupLowest(lows, deal)))
                 .collect(Collectors.toList());
     }
 
@@ -101,15 +105,19 @@ public class DealService {
                 .list();
 
         String lang = language != null ? language : "en";
-        List<DealDTO> dtos = deals.stream().map(d -> DealDTO.from(d, lang)).collect(Collectors.toList());
+        Map<PriceHistory.LowestPriceKey, BigDecimal> lows = PriceHistory.findLowestPricesPerProductRetailer();
+        List<DealDTO> dtos = deals.stream()
+                .map(d -> DealDTO.from(d, lang, lookupLowest(lows, d)))
+                .collect(Collectors.toList());
         return PagedResponse.of(dtos, totalItems, page, pageSize);
     }
 
     public List<DealDTO> findDealsByRetailer(String retailerSlug, String language) {
         List<Deal> deals = Deal.findByRetailer(retailerSlug, expiredVisibleDays);
         String lang = language != null ? language : "en";
+        Map<PriceHistory.LowestPriceKey, BigDecimal> lows = PriceHistory.findLowestPricesPerProductRetailer();
         return deals.stream()
-                .map(deal -> DealDTO.from(deal, lang))
+                .map(deal -> DealDTO.from(deal, lang, lookupLowest(lows, deal)))
                 .collect(Collectors.toList());
     }
 
@@ -119,7 +127,16 @@ public class DealService {
             return Optional.empty();
         }
         String lang = language != null ? language : "en";
-        return Optional.of(DealDTO.from(deal, lang));
+        // Same semantic as the batch finder: only return a meaningful "lowest
+        // seen" when the product has actually moved between ≥2 distinct prices.
+        // Otherwise the badge would fire on every never-changed deal (no signal).
+        String normalized = PriceHistory.normalizeProductName(deal.productName);
+        List<PriceHistory> history = PriceHistory.findByProductAndRetailerLast90Days(normalized, deal.retailer.id);
+        long distinctPrices = history.stream().map(p -> p.price).filter(Objects::nonNull).distinct().count();
+        BigDecimal low = distinctPrices >= 2
+                ? history.stream().map(p -> p.price).filter(Objects::nonNull).min(BigDecimal::compareTo).orElse(null)
+                : null;
+        return Optional.of(DealDTO.from(deal, lang, low));
     }
 
     public Map<String, List<DealDTO>> findDealsGroupedByRetailer(
@@ -136,9 +153,15 @@ public class DealService {
         ).list();
 
         String lang = language != null ? language : "en";
+        Map<PriceHistory.LowestPriceKey, BigDecimal> lows = PriceHistory.findLowestPricesPerProductRetailer();
         return deals.stream()
-                .map(deal -> DealDTO.from(deal, lang))
+                .map(deal -> DealDTO.from(deal, lang, lookupLowest(lows, deal)))
                 .collect(Collectors.groupingBy(DealDTO::retailerSlug));
+    }
+
+    private static BigDecimal lookupLowest(Map<PriceHistory.LowestPriceKey, BigDecimal> lows, Deal deal) {
+        String normalized = PriceHistory.normalizeProductName(deal.productName);
+        return lows.get(new PriceHistory.LowestPriceKey(normalized, deal.retailer.id));
     }
 
     @Transactional

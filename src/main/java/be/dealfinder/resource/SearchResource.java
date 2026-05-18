@@ -18,6 +18,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Path("/api/v1/search")
@@ -142,7 +143,37 @@ public class SearchResource {
                 r -> r.get("currentPrice") != null ? (Double) r.get("currentPrice") : Double.MAX_VALUE
         ));
 
-        return results;
+        return postFilterByTokenPrefix(results, searchTerm);
+    }
+
+    /**
+     * Jafolders' GraphQL search does substring matching, so "cola" returns "Chocolade"
+     * and "wijn" returns "Wijnglas" (drinking glasses). We re-filter so each
+     * whitespace-separated token in the user's query must appear as a word-prefix in
+     * productName, brandName, or description — i.e. the token must start at the
+     * beginning of the string or immediately after a non-word character.
+     *
+     * Strict by design: if the filter removes everything, the user sees 0 results.
+     * Better empty than misleading; brand-name recall gaps (e.g. nutella → 0 raw hits
+     * from jafolders) need a separate fix (custom index or synonym map).
+     */
+    private static List<Map<String, Object>> postFilterByTokenPrefix(
+            List<Map<String, Object>> results, String searchTerm) {
+        List<Pattern> tokenPatterns = Arrays.stream(searchTerm.toLowerCase(Locale.ROOT).split("\\s+"))
+                .filter(t -> !t.isBlank())
+                .map(t -> Pattern.compile("(?:^|\\W)" + Pattern.quote(t), Pattern.CASE_INSENSITIVE))
+                .toList();
+        if (tokenPatterns.isEmpty()) return results;
+
+        return results.stream()
+                .filter(r -> {
+                    String haystack = String.join(" ",
+                            Objects.toString(r.get("productName"), ""),
+                            Objects.toString(r.get("brandName"), ""),
+                            Objects.toString(r.get("description"), ""));
+                    return tokenPatterns.stream().allMatch(p -> p.matcher(haystack).find());
+                })
+                .collect(Collectors.toList());
     }
 
     private String textOrNull(JsonNode node) {

@@ -26,12 +26,13 @@ public class DataInitService {
         upsertRetailer("SPAR", "spar");
         upsertRetailer("Carrefour Market", "carrefour-market");
         upsertRetailer("Intermarché", "intermarche");
-        upsertRetailer("Renmans", "renmans");
         upsertRetailer("Bol.com", "bol-com");
         upsertRetailer("MediaMarkt", "mediamarkt");
-        upsertRetailer("IKEA", "ikea");
         upsertRetailer("GAMMA", "gamma");
         upsertRetailer("Brico & BricoPlanit", "brico-bricoplanit");
+        // Renmans + IKEA dropped — confirmed empty on jafolders (verified 2026-05-18 via direct API call).
+        // Renmans publishes to renmans.be (Drupal) + aggregators; IKEA uses ikea.com/be/nl/offers/ (catalog model, not weekly flyers).
+        // If/when we add a custom scraper for either, re-add the upsertRetailer() line.
 
         LOG.info("Retailers: " + Retailer.count() + " total");
     }

@@ -76,6 +76,68 @@ public class SearchResource {
     }
 
     private List<Map<String, Object>> searchOffers(String searchTerm, int limit) throws Exception {
+        List<Map<String, Object>> primary = executeJafoldersSearch(searchTerm, limit);
+        List<Map<String, Object>> filtered = postFilterByTokenPrefix(primary, searchTerm);
+        if (!filtered.isEmpty()) return filtered;
+
+        // Fallback 1 — per-token AND intersection for multi-word queries.
+        // jafolders' search returns 0 for queries like "rode wijn" / "witte wijn aanbieding"
+        // because it doesn't split on whitespace. We re-query each token separately and
+        // intersect by id, then post-filter to keep word-prefix semantics.
+        String[] tokens = searchTerm.trim().split("\\s+");
+        if (tokens.length > 1 && primary.isEmpty()) {
+            List<Map<String, Object>> intersected = perTokenIntersection(tokens, limit);
+            List<Map<String, Object>> intersectedFiltered = postFilterByTokenPrefix(intersected, searchTerm);
+            if (!intersectedFiltered.isEmpty()) return intersectedFiltered;
+        }
+
+        // Fallback 2 — brand-name synonym map for known recall gaps in jafolders' index.
+        // Only fires when we'd otherwise return 0; never replaces real hits. Results are
+        // returned WITHOUT the token-prefix filter (the original term doesn't appear in
+        // the synonyms by design).
+        List<String> synonyms = BRAND_SYNONYMS.get(searchTerm.toLowerCase(Locale.ROOT).trim());
+        if (synonyms != null) {
+            Set<String> seen = new HashSet<>();
+            List<Map<String, Object>> merged = new ArrayList<>();
+            for (String syn : synonyms) {
+                List<Map<String, Object>> synHits = postFilterByTokenPrefix(
+                        executeJafoldersSearch(syn, limit), syn);
+                for (Map<String, Object> r : synHits) {
+                    if (seen.add(Objects.toString(r.get("id"), ""))) merged.add(r);
+                }
+            }
+            merged.sort(Comparator.comparing(
+                    r -> r.get("currentPrice") != null ? (Double) r.get("currentPrice") : Double.MAX_VALUE));
+            return merged.stream().limit(limit).collect(Collectors.toList());
+        }
+
+        return List.of();
+    }
+
+    private List<Map<String, Object>> perTokenIntersection(String[] tokens, int limit) throws Exception {
+        Map<String, Map<String, Object>> intersection = null;
+        for (String token : tokens) {
+            if (token.isBlank()) continue;
+            List<Map<String, Object>> tokenHits = executeJafoldersSearch(token, Math.min(limit * 3, 100));
+            Map<String, Map<String, Object>> byId = new LinkedHashMap<>();
+            for (Map<String, Object> r : tokenHits) {
+                byId.put(Objects.toString(r.get("id"), ""), r);
+            }
+            if (intersection == null) {
+                intersection = byId;
+            } else {
+                intersection.keySet().retainAll(byId.keySet());
+            }
+            if (intersection.isEmpty()) return List.of();
+        }
+        if (intersection == null) return List.of();
+        List<Map<String, Object>> out = new ArrayList<>(intersection.values());
+        out.sort(Comparator.comparing(
+                r -> r.get("currentPrice") != null ? (Double) r.get("currentPrice") : Double.MAX_VALUE));
+        return out.stream().limit(limit).collect(Collectors.toList());
+    }
+
+    private List<Map<String, Object>> executeJafoldersSearch(String searchTerm, int limit) throws Exception {
         String variables = mapper.writeValueAsString(Map.of(
                 "search", searchTerm,
                 "limit", Math.min(limit, 100),
@@ -143,8 +205,28 @@ public class SearchResource {
                 r -> r.get("currentPrice") != null ? (Double) r.get("currentPrice") : Double.MAX_VALUE
         ));
 
-        return postFilterByTokenPrefix(results, searchTerm);
+        return results;
     }
+
+    /**
+     * Brand → Dutch-generic fallback. Fires only when the primary brand query returns 0
+     * hits in jafolders. Conservative list — start with brands users have actually tried
+     * (and got 0 from) and grow as gaps surface. Keep keys lowercase and trimmed.
+     */
+    private static final Map<String, List<String>> BRAND_SYNONYMS = Map.ofEntries(
+            Map.entry("nutella", List.of("hazelnootpasta", "chocopasta")),
+            Map.entry("nespresso", List.of("koffiecapsules", "koffiepads")),
+            Map.entry("senseo", List.of("koffiepads")),
+            Map.entry("red bull", List.of("energiedrank")),
+            Map.entry("redbull", List.of("energiedrank")),
+            Map.entry("ariel", List.of("wasmiddel")),
+            Map.entry("dreft", List.of("afwasmiddel", "vaatwasmiddel")),
+            Map.entry("evian", List.of("mineraalwater", "bronwater")),
+            Map.entry("oral-b", List.of("tandenborstel", "tandpasta")),
+            Map.entry("oral b", List.of("tandenborstel", "tandpasta")),
+            Map.entry("colgate", List.of("tandpasta")),
+            Map.entry("nivea", List.of("bodylotion", "huidverzorging"))
+    );
 
     /**
      * Jafolders' GraphQL search does substring matching, so "cola" returns "Chocolade"

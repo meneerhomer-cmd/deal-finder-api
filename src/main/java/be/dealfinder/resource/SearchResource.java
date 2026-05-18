@@ -62,12 +62,14 @@ public class SearchResource {
         }
 
         try {
-            List<Map<String, Object>> results = searchOffers(query.trim(), limit);
-            return Response.ok(Map.of(
-                    "query", query,
-                    "count", results.size(),
-                    "results", results
-            )).build();
+            SearchOutcome outcome = searchOffersWithKind(query.trim(), limit);
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("query", query);
+            body.put("count", outcome.results.size());
+            body.put("kind", outcome.kind);
+            if (outcome.synonymsUsed != null) body.put("synonymsUsed", outcome.synonymsUsed);
+            body.put("results", outcome.results);
+            return Response.ok(body).build();
         } catch (Exception e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity(Map.of("error", e.getMessage()))
@@ -75,10 +77,10 @@ public class SearchResource {
         }
     }
 
-    private List<Map<String, Object>> searchOffers(String searchTerm, int limit) throws Exception {
+    private SearchOutcome searchOffersWithKind(String searchTerm, int limit) throws Exception {
         List<Map<String, Object>> primary = executeJafoldersSearch(searchTerm, limit);
         List<Map<String, Object>> filtered = postFilterByTokenPrefix(primary, searchTerm);
-        if (!filtered.isEmpty()) return filtered;
+        if (!filtered.isEmpty()) return new SearchOutcome("primary", filtered, null);
 
         // Fallback 1 — per-token AND intersection for multi-word queries.
         // jafolders' search returns 0 for queries like "rode wijn" / "witte wijn aanbieding"
@@ -88,7 +90,7 @@ public class SearchResource {
         if (tokens.length > 1 && primary.isEmpty()) {
             List<Map<String, Object>> intersected = perTokenIntersection(tokens, limit);
             List<Map<String, Object>> intersectedFiltered = postFilterByTokenPrefix(intersected, searchTerm);
-            if (!intersectedFiltered.isEmpty()) return intersectedFiltered;
+            if (!intersectedFiltered.isEmpty()) return new SearchOutcome("intersection", intersectedFiltered, null);
         }
 
         // Fallback 2 — brand-name synonym map for known recall gaps in jafolders' index.
@@ -108,11 +110,16 @@ public class SearchResource {
             }
             merged.sort(Comparator.comparing(
                     r -> r.get("currentPrice") != null ? (Double) r.get("currentPrice") : Double.MAX_VALUE));
-            return merged.stream().limit(limit).collect(Collectors.toList());
+            if (!merged.isEmpty()) {
+                List<Map<String, Object>> capped = merged.stream().limit(limit).collect(Collectors.toList());
+                return new SearchOutcome("synonym", capped, synonyms);
+            }
         }
 
-        return List.of();
+        return new SearchOutcome("primary", List.of(), null);
     }
+
+    private record SearchOutcome(String kind, List<Map<String, Object>> results, List<String> synonymsUsed) {}
 
     private List<Map<String, Object>> perTokenIntersection(String[] tokens, int limit) throws Exception {
         Map<String, Map<String, Object>> intersection = null;

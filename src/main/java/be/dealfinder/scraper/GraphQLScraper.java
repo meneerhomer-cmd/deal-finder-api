@@ -4,6 +4,8 @@ import be.dealfinder.entity.Category;
 import be.dealfinder.entity.Deal;
 import be.dealfinder.entity.PriceHistory;
 import be.dealfinder.entity.Retailer;
+import be.dealfinder.extraction.ProductExtraction;
+import be.dealfinder.extraction.ProductExtractor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -31,7 +33,7 @@ public class GraphQLScraper {
     private static final String CONTEXT_HEADER = "myshopi;nl;web;1;1";
 
     @Inject
-    DealImageAnalyzer imageAnalyzer;
+    ProductExtractor productExtractor;
 
     private static final String OFFERS_QUERY = """
         query($shopSlug: String!, $limit: Int!, $offset: Int!) {
@@ -61,8 +63,8 @@ public class GraphQLScraper {
     @ConfigProperty(name = "deals.minimum-discount", defaultValue = "20")
     int minimumDiscount;
 
-    @ConfigProperty(name = "scraper.image-analysis.enabled", defaultValue = "true")
-    boolean imageAnalysisEnabled;
+    @ConfigProperty(name = "scraper.product-extraction.enabled", defaultValue = "true")
+    boolean productExtractionEnabled;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -216,25 +218,51 @@ public class GraphQLScraper {
         );
         deal.category = category;
 
-        if (hotspotImageUrl != null && imageAnalysisEnabled) {
-            imageAnalyzer.analyze(hotspotImageUrl).ifPresent(info -> {
-                deal.dealType = info.dealType();
-                deal.quantity = info.quantity();
-                deal.unitPrice = info.unitPrice();
-                deal.brand = info.brand();
-                deal.conditions = info.conditions();
-                deal.minPurchase = info.minPurchase();
-                deal.variants = info.variants();
-                deal.loyaltyCard = info.loyaltyCard();
-                deal.department = info.department();
-                deal.validDays = info.validDays();
-            });
+        if (hotspotImageUrl != null && productExtractionEnabled) {
+            ProductExtractor.Listing listing = new ProductExtractor.Listing(
+                    name, null, null, retailer.slug, retailer.name);
+            productExtractor.extract(hotspotImageUrl, listing).ifPresent(ex -> applyExtraction(deal, ex));
         }
 
         deal.persist();
         PriceHistory.create(deal).persist();
         newDealIds.add(deal.id);
         return new int[]{1, 0};
+    }
+
+    public static void applyExtraction(Deal deal, ProductExtraction ex) {
+        deal.brand = ex.brand();
+        if (ex.bundleType() != null) deal.dealType = ex.bundleType();
+        String qty = formatQuantity(ex.volumeStructure());
+        if (qty != null) deal.quantity = qty;
+        String unit = formatFlyerUnitPrice(ex.flyerUnitPrice());
+        if (unit != null) deal.unitPrice = unit;
+        deal.loyaltyCard = "loyalty-card-only".equals(ex.trapDetected()) ? "vereist klantenkaart" : null;
+        deal.fingerprint = ex.fingerprint();
+        deal.extractionJson = ex.rawJson();
+    }
+
+    static String formatQuantity(ProductExtraction.VolumeStructure vs) {
+        if (vs == null || vs.baseUnit() == null || vs.amountPerUnit() == null) return null;
+        String unit = switch (vs.baseUnit()) {
+            case "ml", "g" -> vs.baseUnit();
+            case "wash" -> " wash";
+            case "diaper" -> " stuks";
+            default -> "";
+        };
+        Integer count = vs.unitCount();
+        String amount = formatNumber(vs.amountPerUnit());
+        if (count != null && count > 1) return count + " x " + amount + unit;
+        return amount + unit;
+    }
+
+    static String formatFlyerUnitPrice(ProductExtraction.FlyerUnitPrice fup) {
+        if (fup == null || fup.value() == null || fup.unit() == null) return null;
+        return String.format(java.util.Locale.US, "%.2f/%s", fup.value(), fup.unit());
+    }
+
+    private static String formatNumber(double n) {
+        return n == Math.floor(n) ? String.valueOf((int) n) : String.valueOf(n);
     }
 
     private Category findBestCategory(String productName, List<Category> categories) {

@@ -1,7 +1,7 @@
 package be.dealfinder.resource;
 
 import be.dealfinder.entity.Deal;
-import be.dealfinder.scraper.DealImageAnalyzer;
+import be.dealfinder.extraction.ProductExtractor;
 import be.dealfinder.scraper.GraphQLScraper;
 import be.dealfinder.service.NotificationService;
 import be.dealfinder.service.ScraperService;
@@ -29,7 +29,7 @@ public class AdminResource {
     ScraperService scraperService;
 
     @Inject
-    DealImageAnalyzer imageAnalyzer;
+    ProductExtractor productExtractor;
 
     @Inject
     NotificationService notificationService;
@@ -72,12 +72,12 @@ public class AdminResource {
 
     @POST
     @Path("/backfill-images")
-    @Operation(summary = "Run image analysis on existing active deals that haven't been analyzed yet")
+    @Operation(summary = "Run product extraction on existing active deals that haven't been fingerprinted yet")
     public Response backfillImages(@QueryParam("limit") @DefaultValue("50") int limit) {
         LocalDate today = LocalDate.now();
-        String query = "brand is null and imageUrl is not null and validUntil >= ?1";
+        String query = "fingerprint is null and imageUrl is not null and validUntil >= ?1";
         List<Deal> candidates = Deal.find(query, today).page(0, limit).list();
-        LOG.info("Image backfill: " + candidates.size() + " active candidates");
+        LOG.info("Extraction backfill: " + candidates.size() + " active candidates");
 
         int analyzed = 0;
         int failed = 0;
@@ -91,7 +91,7 @@ public class AdminResource {
         }
 
         long remaining = Deal.count(query, today) - analyzed;
-        LOG.info("Image backfill done: analyzed=" + analyzed + " failed=" + failed + " remaining=" + remaining);
+        LOG.info("Extraction backfill done: analyzed=" + analyzed + " failed=" + failed + " remaining=" + remaining);
         return Response.ok(Map.of(
                 "analyzed", analyzed,
                 "failed", failed,
@@ -117,19 +117,14 @@ public class AdminResource {
 
     @Transactional
     boolean analyzeAndPersist(Deal deal) {
-        return imageAnalyzer.analyze(deal.imageUrl).map(info -> {
+        ProductExtractor.Listing listing = new ProductExtractor.Listing(
+                deal.productName, deal.brand, deal.quantity,
+                deal.retailer != null ? deal.retailer.slug : null,
+                deal.retailer != null ? deal.retailer.name : null);
+        return productExtractor.extract(deal.imageUrl, listing).map(ex -> {
             Deal managed = Deal.findById(deal.id);
             if (managed == null) return false;
-            managed.dealType = info.dealType();
-            managed.quantity = info.quantity();
-            managed.unitPrice = info.unitPrice();
-            managed.brand = info.brand();
-            managed.conditions = info.conditions();
-            managed.minPurchase = info.minPurchase();
-            managed.variants = info.variants();
-            managed.loyaltyCard = info.loyaltyCard();
-            managed.department = info.department();
-            managed.validDays = info.validDays();
+            GraphQLScraper.applyExtraction(managed, ex);
             managed.persist();
             return true;
         }).orElse(false);

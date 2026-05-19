@@ -1,0 +1,350 @@
+[
+  {
+    "slot": "1-easy-clear-brand",
+    "imageUrl": "https://cdn.jafolders.com/hotspots/996ca922-f92c-47f9-bba9-e6154972ca65/original.jpg",
+    "listing": {
+      "productName": "Bier Desperados",
+      "brand": "Desperados",
+      "quantity": "4 x 50 cl",
+      "retailerSlug": "carrefour-market",
+      "retailerName": "Carrefour Market"
+    },
+    "expectedExtraction": {
+      "fingerprintable": true,
+      "confidence": 0.95,
+      "ambiguityNotes": null,
+      "category": "bier",
+      "brand": "Desperados",
+      "productLine": "Desperados",
+      "variantFamily": "standard",
+      "style": "other",
+      "categoryAttributes": {
+        "abvPercent": 5.9,
+        "brewery": "Heineken",
+        "packageType": "bottle"
+      },
+      "trapDetected": null,
+      "isPrivateLabel": false,
+      "volumeStructure": {
+        "unitCount": 4,
+        "amountPerUnit": 500,
+        "baseUnit": "ml"
+      },
+      "flyerUnitPrice": null,
+      "bundleType": "1+1 gratis",
+      "bundleEffectiveDiscount": 50
+    }
+  },
+  {
+    "slot": "2-variant-ambiguous-hoegaarden",
+    "imageUrl": "https://cdn.jafolders.com/hotspots/c6db74e7-0f4c-4806-b1b7-607ce68a379d/original.jpg",
+    "listing": {
+      "productName": "Hoegaarden Rosée 0,0%, 6 st.",
+      "brand": "Hoegaarden",
+      "quantity": "6 x (6 x 33 cl)",
+      "retailerSlug": "aldi",
+      "retailerName": "ALDI"
+    },
+    "expectedExtraction": {
+      "fingerprintable": true,
+      "confidence": 0.95,
+      "ambiguityNotes": "Hoegaarden Rosée 0,0% is a distinct fingerprint from regular Hoegaarden Witbier (different variantFamily, different style). Must NOT cross-match to standard Witbier deals.",
+      "category": "bier",
+      "brand": "Hoegaarden",
+      "productLine": "Hoegaarden Rosée",
+      "variantFamily": "alcohol-free",
+      "style": "fruit-beer",
+      "categoryAttributes": {
+        "abvPercent": 0.0,
+        "brewery": "AB InBev",
+        "packageType": "bottle"
+      },
+      "trapDetected": null,
+      "isPrivateLabel": false,
+      "volumeStructure": {
+        "unitCount": 36,
+        "amountPerUnit": 330,
+        "baseUnit": "ml"
+      },
+      "flyerUnitPrice": null,
+      "bundleType": "1+1 gratis",
+      "bundleEffectiveDiscount": 50
+    }
+  },
+  {
+    "slot": "3-private-label-aldi-fresh",
+    "imageUrl": "https://cdn.jafolders.com/hotspots/2799de01-0c12-4449-bf25-683672c75df1/original.jpg",
+    "listing": {
+      "productName": "Frietaardappelen",
+      "brand": null,
+      "quantity": "5 kg",
+      "retailerSlug": "aldi",
+      "retailerName": "ALDI"
+    },
+    "expectedExtraction": {
+      "fingerprintable": false,
+      "confidence": 0.40,
+      "ambiguityNotes": "Generic Aldi private-label fresh potatoes; no distinguishing brand or product line. Fresh produce typically not cross-retailer matchable. 'met Xtra-kaart (x2 PUNTEN)' is a loyalty BONUS (extra points), not a loyalty requirement — discount applies to all shoppers.",
+      "category": "groente-fruit",
+      "brand": null,
+      "productLine": null,
+      "variantFamily": "standard",
+      "style": null,
+      "categoryAttributes": null,
+      "trapDetected": "private-label",
+      "isPrivateLabel": true,
+      "volumeStructure": {
+        "unitCount": 1,
+        "amountPerUnit": 5000,
+        "baseUnit": "g"
+      },
+      "flyerUnitPrice": null,
+      "bundleType": null,
+      "bundleEffectiveDiscount": null
+    }
+  },
+  {
+    "slot": "4-cashback-pampers",
+    "imageUrl": "https://cdn.jafolders.com/hotspots/4ad9351c-e153-4fb3-be69-188f502ad5e6/original.jpg",
+    "listing": {
+      "productName": "Pampers keysize",
+      "brand": "Pampers",
+      "quantity": "maat 4",
+      "retailerSlug": "kruidvat",
+      "retailerName": "Kruidvat"
+    },
+    "expectedExtraction": {
+      "fingerprintable": true,
+      "confidence": 0.85,
+      "ambiguityNotes": "Cashback offer (100% terugbetaald via app). Signal exists in flyer image only — listing text fields have no 'terugbetaald' string. Downstream scraper override: dealType => '100% terugbetaald', currentPrice override to originalPrice for honest display.",
+      "category": "baby",
+      "brand": "Pampers",
+      "productLine": "Baby-Dry",
+      "variantFamily": "standard",
+      "style": null,
+      "categoryAttributes": {
+        "size": "4",
+        "pieceCount": 24,
+        "isHypoallergenic": false
+      },
+      "trapDetected": "cashback",
+      "isPrivateLabel": false,
+      "volumeStructure": {
+        "unitCount": 24,
+        "amountPerUnit": 1,
+        "baseUnit": "diaper"
+      },
+      "flyerUnitPrice": null,
+      "bundleType": null,
+      "bundleEffectiveDiscount": null
+    }
+  },
+  {
+    "slot": "5-loyalty-card-only-finish",
+    "imageUrl": "https://cdn.jafolders.com/hotspots/ddf25a86-c7de-4ac1-adc5-305f2a80a92b/original.jpg",
+    "listing": {
+      "productName": "Vaatwastabletten Ultimate jaarvolume",
+      "brand": "Finish",
+      "quantity": "196 stuks",
+      "retailerSlug": "kruidvat",
+      "retailerName": "Kruidvat"
+    },
+    "expectedExtraction": {
+      "fingerprintable": true,
+      "confidence": 0.92,
+      "ambiguityNotes": "Discount only with Kruidvat Xtra-kaart loyalty card; non-cardholders pay €108.99 not €38.99. Downstream display: flag clearly for shoppers without a Kruidvat account.",
+      "category": "huishouden",
+      "brand": "Finish",
+      "productLine": "Ultimate",
+      "variantFamily": "premium",
+      "style": "vaatwasmiddel",
+      "categoryAttributes": {
+        "washCount": 196,
+        "concentrationFactor": null,
+        "ecoLabel": "none",
+        "fragranceFree": false
+      },
+      "trapDetected": "loyalty-card-only",
+      "isPrivateLabel": false,
+      "volumeStructure": {
+        "unitCount": 196,
+        "amountPerUnit": 1,
+        "baseUnit": "wash"
+      },
+      "flyerUnitPrice": null,
+      "bundleType": null,
+      "bundleEffectiveDiscount": null
+    }
+  },
+  {
+    "slot": "6-multi-product-bundle-delio",
+    "imageUrl": "https://cdn.jafolders.com/hotspots/d1a7386a-6bf1-4ff9-84f3-e68c8fc025aa/original.jpg",
+    "listing": {
+      "productName": "No mayo",
+      "brand": "Délio",
+      "quantity": "3 bakjes van 180 gram",
+      "retailerSlug": "albert-heijn",
+      "retailerName": "Albert Heijn"
+    },
+    "expectedExtraction": {
+      "fingerprintable": false,
+      "confidence": 0.55,
+      "ambiguityNotes": "Multi-product bundle: 3 different flavor variants (kip curry / toscaanse tonijn / salade met krab) bundled at one price. 'combineren mogelijk' confirms variants can be mixed. No single product fingerprint possible.",
+      "category": "saus-kruiden",
+      "brand": "Délio",
+      "productLine": "No mayo",
+      "variantFamily": "standard",
+      "style": null,
+      "categoryAttributes": null,
+      "trapDetected": "multi-product-bundle",
+      "isPrivateLabel": false,
+      "volumeStructure": {
+        "unitCount": 3,
+        "amountPerUnit": 180,
+        "baseUnit": "g"
+      },
+      "flyerUnitPrice": null,
+      "bundleType": "1+2 gratis",
+      "bundleEffectiveDiscount": 67
+    }
+  },
+  {
+    "slot": "7-cereal-brand-level-kelloggs",
+    "imageUrl": "https://cdn.jafolders.com/hotspots/d5d94c2c-9b99-42f7-a9a4-4efce95f7db5/original.jpg",
+    "listing": {
+      "productName": "ontbijtgranen",
+      "brand": "Kellogg's",
+      "quantity": "215-500 gram",
+      "retailerSlug": "jumbo",
+      "retailerName": "Jumbo"
+    },
+    "expectedExtraction": {
+      "fingerprintable": true,
+      "confidence": 0.75,
+      "ambiguityNotes": "Brand-level deal: 'alle soorten' Kellogg's cereal at 215-500g size range. productLine null — covers Cornflakes, Frosties, Special K, etc. simultaneously. Cross-retailer matching may produce lower-precision matches; favorite-brand Tier-2 push works as intended. Per-product Tier-1 watch will not fire (no specific productLine).",
+      "category": "ontbijtgranen",
+      "brand": "Kellogg's",
+      "productLine": null,
+      "variantFamily": "standard",
+      "style": null,
+      "categoryAttributes": {
+        "nutriScore": null,
+        "sugarPer100g": null,
+        "fiberPer100g": null,
+        "isOrganic": false
+      },
+      "trapDetected": null,
+      "isPrivateLabel": false,
+      "volumeStructure": null,
+      "flyerUnitPrice": null,
+      "bundleType": "2+1 gratis",
+      "bundleEffectiveDiscount": 33
+    }
+  },
+  {
+    "slot": "8-chocolate-cote-dor",
+    "imageUrl": "https://cdn.jafolders.com/hotspots/5865be0f-fac2-4bcb-b7c8-18cba3c0fb12/original.jpg",
+    "listing": {
+      "productName": "Cote D'Or tabletten",
+      "brand": null,
+      "quantity": null,
+      "retailerSlug": "jumbo",
+      "retailerName": "Jumbo"
+    },
+    "expectedExtraction": {
+      "fingerprintable": true,
+      "confidence": 0.82,
+      "ambiguityNotes": "Brand 'Côte d'Or' recovered from image (source listing has brand=null, productName has 'Cote D'Or' as plain text). Deal covers Côte d'Or tablet range; specific variant not derivable when multiple tablets pictured.",
+      "category": "snoep-chocolade",
+      "brand": "Côte d'Or",
+      "productLine": "Tabletten",
+      "variantFamily": "standard",
+      "style": "tablets",
+      "categoryAttributes": {
+        "cocoaPercent": null,
+        "sugarPer100g": null,
+        "origin": "blend",
+        "isFairTrade": false
+      },
+      "trapDetected": null,
+      "isPrivateLabel": false,
+      "volumeStructure": {
+        "unitCount": 1,
+        "amountPerUnit": 200,
+        "baseUnit": "g"
+      },
+      "flyerUnitPrice": null,
+      "bundleType": null,
+      "bundleEffectiveDiscount": null
+    }
+  },
+  {
+    "slot": "9-detergent-ariel-pods",
+    "imageUrl": "https://cdn.jafolders.com/hotspots/be1e0172-4cc8-4ddb-ac90-657957fc5e0f/original.jpg",
+    "listing": {
+      "productName": "Waspods",
+      "brand": "Ariel",
+      "quantity": "6 x 26 doseringen",
+      "retailerSlug": "carrefour",
+      "retailerName": "Carrefour"
+    },
+    "expectedExtraction": {
+      "fingerprintable": true,
+      "confidence": 0.92,
+      "ambiguityNotes": "Multi-pack: 6 packs × 26 washes each = 156 total washes. Deal covers 'alle soorten' within Ariel Pods line (different scents). Variant flexibility within same product line is NOT a multi-product trap. bundleEffectiveDiscount 67% qualifies for Tier-2 favorite-brand push.",
+      "category": "huishouden",
+      "brand": "Ariel",
+      "productLine": "Pods",
+      "variantFamily": "standard",
+      "style": "wasmiddel",
+      "categoryAttributes": {
+        "washCount": 156,
+        "concentrationFactor": null,
+        "ecoLabel": "none",
+        "fragranceFree": false
+      },
+      "trapDetected": null,
+      "isPrivateLabel": false,
+      "volumeStructure": {
+        "unitCount": 6,
+        "amountPerUnit": 26,
+        "baseUnit": "wash"
+      },
+      "flyerUnitPrice": null,
+      "bundleType": "2+4 gratis",
+      "bundleEffectiveDiscount": 67
+    }
+  },
+  {
+    "slot": "10-baby-diapers-pampers-xxl",
+    "imageUrl": "https://cdn.jafolders.com/hotspots/7136d07f-0fa8-49e0-9998-453109f10250/original.jpg",
+    "listing": {
+      "productName": "Pampers luiers en luierbroekjes XXL pak",
+      "brand": "Pampers",
+      "quantity": "XXL pak",
+      "retailerSlug": "kruidvat",
+      "retailerName": "Kruidvat"
+    },
+    "expectedExtraction": {
+      "fingerprintable": true,
+      "confidence": 0.78,
+      "ambiguityNotes": "Brand-level deal in XXL pak format: covers both 'night pants' and 'baby-dry' Pampers product lines. '2e artikel 80% korting' permits mixing. productLine null. Size + pieceCount null because XXL pak covers a size range. Effective discount math: buy 2 at €Y → pay €Y + €Y*0.20 = €1.20Y → €0.60Y per item → 40% off effective per unit.",
+      "category": "baby",
+      "brand": "Pampers",
+      "productLine": null,
+      "variantFamily": "standard",
+      "style": null,
+      "categoryAttributes": {
+        "size": null,
+        "pieceCount": null,
+        "isHypoallergenic": false
+      },
+      "trapDetected": null,
+      "isPrivateLabel": false,
+      "volumeStructure": null,
+      "flyerUnitPrice": null,
+      "bundleType": "2e artikel 80% korting",
+      "bundleEffectiveDiscount": 40
+    }
+  }
+]

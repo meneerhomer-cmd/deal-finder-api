@@ -1,0 +1,108 @@
+{
+  "name": "extract_product",
+  "description": "Extract canonical product identity from a Belgian supermarket flyer image. The output drives cross-retailer matching and per-category attribute display in a savings-first shopping app. If you cannot identify the product with confidence >= 0.70, set fingerprintable=false and explain in ambiguityNotes. Trust the image over listing-context text when they conflict.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "fingerprintable": {
+        "type": "boolean",
+        "description": "True when the product has a clear category + brand + productLine identity. False for ambiguous fresh produce, multi-product bundles, subscription bundles, or anything with confidence < 0.70."
+      },
+      "confidence": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "description": "0.90+: brand AND productLine clearly visible. 0.80-0.89: brand visible, productLine inferred. 0.70-0.79: brand visible, productLine uncertain. <0.70: set fingerprintable=false."
+      },
+      "ambiguityNotes": {
+        "type": ["string", "null"],
+        "description": "Free-text note for downstream debugging. Explain ambiguities, variant warnings, or recovery steps (e.g. 'brand recovered from image; listing has null')."
+      },
+      "category": {
+        "type": ["string", "null"],
+        "enum": [
+          "bier", "wijn", "frisdrank", "water", "koffie-thee",
+          "snoep-chocolade", "snoep-anders",
+          "ontbijtgranen", "zuivel", "vlees-vis", "groente-fruit",
+          "diepvries", "conserven", "pasta-rijst", "saus-kruiden",
+          "bakery", "baby", "huishouden",
+          null
+        ],
+        "description": "Food-only categories. Non-food (electronics, garden, DIY, clothing) => fingerprintable=false, category=null, ambiguityNotes='non-food, out of v1 scope'."
+      },
+      "brand": {
+        "type": ["string", "null"],
+        "description": "Brand name as printed (e.g. 'Hoegaarden', 'Côte d''Or', 'Pampers'). null when unbranded or private-label without a distinguishable brand."
+      },
+      "productLine": {
+        "type": ["string", "null"],
+        "description": "Brand's specific product range (e.g. 'Witbier', 'Baby-Dry', 'Ultimate', 'Tabletten'). null for brand-level deals like 'alle soorten Kellogg's'."
+      },
+      "variantFamily": {
+        "type": "string",
+        "enum": [
+          "standard", "alcohol-free", "sugar-free", "organic",
+          "lite", "premium", "seasonal", "kids", "other"
+        ],
+        "description": "Variant family within the brand+productLine. 'alcohol-free' for 0,0% beers. 'premium' for high-end lines (Finish Ultimate, Pampers Premium). 'standard' is the default."
+      },
+      "style": {
+        "type": ["string", "null"],
+        "description": "Category-specific sub-style. bier: blond|witbier|pilsner|trappist|strong-blond|abdijbier|fruit-beer|alcohol-free|other. wijn: red|white|rose|sparkling|fortified. snoep-chocolade: dark|milk|white|filled|pralines|tablets|bars. huishouden: wasmiddel|vaatwasmiddel|schoonmaakmiddel|wc-product|luchtverfrisser. Other categories: null."
+      },
+      "categoryAttributes": {
+        "type": ["object", "null"],
+        "description": "Per-category attribute schema. bier: {abvPercent: number|null, brewery: string|null, packageType: bottle|can|draft|null}. ontbijtgranen: {nutriScore: A|B|C|D|E|null, sugarPer100g: number|null, fiberPer100g: number|null, isOrganic: boolean}. snoep-chocolade: {cocoaPercent: number 0-100|null, sugarPer100g: number|null, origin: single-origin|blend|null, isFairTrade: boolean}. huishouden: {washCount: number|null, concentrationFactor: 1|2|3|4|null, ecoLabel: eu-ecolabel|nordic-swan|none|null, fragranceFree: boolean}. baby: {size: newborn|1|2|3|4|5|6|6+|null, pieceCount: number|null, isHypoallergenic: boolean}. Other categories: empty object {} or null."
+      },
+      "trapDetected": {
+        "type": ["string", "null"],
+        "enum": [
+          "subscription-bundle",
+          "cashback",
+          "loyalty-card-only",
+          "multi-product-bundle",
+          "private-label",
+          null
+        ],
+        "description": "subscription-bundle: requires mobile/internet contract. cashback: '100% terugbetaald' / '100% remboursé' / shopper pays upfront, refunded via app. loyalty-card-only: discount requires retailer loyalty card ('met klantenkaart', 'met Xtra-kaart'). multi-product-bundle: multiple distinct SKUs bundled at one price ('3 verschillende varianten voor €X'). private-label: brand IS the retailer's house brand or generic unbranded. Set fingerprintable=false when trap is subscription-bundle or multi-product-bundle."
+      },
+      "isPrivateLabel": {
+        "type": "boolean",
+        "description": "True when the brand is the retailer's house label (Carrefour, Albert Heijn Huismerk, 365 by Delhaize, Lidl Italiamo, Sunsnacks/Crofton at Aldi, etc.) OR unbranded private-label fresh produce."
+      },
+      "volumeStructure": {
+        "type": ["object", "null"],
+        "properties": {
+          "unitCount": {"type": ["integer", "null"], "description": "e.g. 6 for a 6×33cl pack, 1 for a single 200g tablet, 4 for a 4-pack."},
+          "amountPerUnit": {"type": ["number", "null"], "description": "e.g. 330 for 330ml, 200 for 200g, 26 for 26 washes per pod-pack."},
+          "baseUnit": {"type": ["string", "null"], "enum": ["ml", "g", "wash", "diaper", null]}
+        },
+        "description": "Structural breakdown of pack size for €/L, €/kg, €/wash, €/luier computation. null when range or ambiguous ('215-500g')."
+      },
+      "flyerUnitPrice": {
+        "type": ["object", "null"],
+        "properties": {
+          "value": {"type": ["number", "null"], "description": "Printed unit price on the flyer, e.g. 2.16"},
+          "unit": {"type": ["string", "null"], "enum": ["L", "kg", "wash", "diaper", null]}
+        },
+        "description": "Unit price printed directly on the flyer (e.g. '€2,16/L'). null when not printed."
+      },
+      "bundleType": {
+        "type": ["string", "null"],
+        "description": "Verbatim Dutch bundle text from flyer: '1+1 gratis', '1+2 gratis', '2+1 gratis', '2+4 gratis', '2e artikel 50% korting', '2e artikel 80% korting', '3 voor €5', etc. null when no bundle mechanic (just a flat % discount)."
+      },
+      "bundleEffectiveDiscount": {
+        "type": ["number", "null"],
+        "minimum": 0,
+        "maximum": 100,
+        "description": "Effective % off per unit when bundle is applied. 1+1=50, 1+2=67, 2+1=33, 2+4=67, 2e-artikel-50%=25 (half the second-item discount), 2e-artikel-80%=40. null when bundleType is null."
+      }
+    },
+    "required": [
+      "fingerprintable",
+      "confidence",
+      "variantFamily",
+      "isPrivateLabel"
+    ]
+  }
+}

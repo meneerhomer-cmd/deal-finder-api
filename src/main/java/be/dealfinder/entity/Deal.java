@@ -54,7 +54,7 @@ public class Deal extends PanacheEntity {
     @Column(unique = true)
     public String externalId;
 
-    // Image analysis fields (populated by DealImageAnalyzer)
+    // Image analysis fields (populated by ProductExtractor)
     public String dealType;
     public String quantity;
     public String unitPrice;
@@ -65,6 +65,13 @@ public class Deal extends PanacheEntity {
     public String loyaltyCard;
     public String department;
     public String validDays;
+
+    // Product fingerprint + raw extraction (populated by ProductExtractor)
+    @Column(length = 500)
+    public String fingerprint;
+
+    @Column(columnDefinition = "TEXT")
+    public String extractionJson;
 
     // === Computed Properties ===
 

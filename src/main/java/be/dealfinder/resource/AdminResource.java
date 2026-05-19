@@ -3,6 +3,8 @@ package be.dealfinder.resource;
 import be.dealfinder.entity.Deal;
 import be.dealfinder.extraction.ProductExtractor;
 import be.dealfinder.scraper.GraphQLScraper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import be.dealfinder.service.NotificationService;
 import be.dealfinder.service.ScraperService;
 import jakarta.inject.Inject;
@@ -97,6 +99,33 @@ public class AdminResource {
                 "failed", failed,
                 "remaining", remaining
         )).build();
+    }
+
+    @POST
+    @Path("/apply-cashback-overrides")
+    @Transactional
+    @Operation(summary = "Retroactively apply cashback overrides on deals where trapDetected=cashback")
+    public Response applyCashbackOverrides() {
+        ObjectMapper m = new ObjectMapper();
+        List<Deal> withExtraction = Deal.find("extractionJson is not null and originalPrice is not null").list();
+        int fixed = 0;
+        int scanned = withExtraction.size();
+        for (Deal deal : withExtraction) {
+            try {
+                JsonNode root = m.readTree(deal.extractionJson);
+                if (!"cashback".equals(root.path("trapDetected").asText(null))) continue;
+                if (deal.currentPrice != null && deal.currentPrice.compareTo(deal.originalPrice) == 0) continue;
+                deal.currentPrice = deal.originalPrice;
+                deal.discountPercentage = 0;
+                deal.dealType = "100% terugbetaald";
+                deal.persist();
+                fixed++;
+            } catch (Exception e) {
+                LOG.warn("Cashback override skipped for deal " + deal.id + ": " + e.getMessage());
+            }
+        }
+        LOG.info("Cashback override: scanned=" + scanned + " fixed=" + fixed);
+        return Response.ok(Map.of("scanned", scanned, "fixed", fixed)).build();
     }
 
     @POST

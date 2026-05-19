@@ -240,6 +240,16 @@ public class GraphQLScraper {
         deal.loyaltyCard = "loyalty-card-only".equals(ex.trapDetected()) ? "vereist klantenkaart" : null;
         deal.fingerprint = ex.fingerprint();
         deal.extractionJson = ex.rawJson();
+
+        // Cashback override: shopper pays the full price upfront and is reimbursed
+        // via the retailer's app afterwards. The raw GraphQL data reports this as
+        // currentPrice=0, discountPercentage=100, which renders misleadingly as
+        // "GRATIS" without this override.
+        if ("cashback".equals(ex.trapDetected()) && deal.originalPrice != null) {
+            deal.currentPrice = deal.originalPrice;
+            deal.discountPercentage = 0;
+            deal.dealType = "100% terugbetaald";
+        }
     }
 
     static String formatQuantity(ProductExtraction.VolumeStructure vs) {

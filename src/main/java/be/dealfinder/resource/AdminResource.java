@@ -111,6 +111,9 @@ public class AdminResource {
                     .entity(Map.of("error", "deal " + id + " not found")).build();
         }
         boolean ok = analyzeAndPersist(deal);
+        // analyzeAndPersist commits in its own @Transactional scope; drop the
+        // request-scoped cached entity so we re-read the post-override values.
+        Deal.getEntityManager().clear();
         Deal updated = Deal.findById(id);
         return Response.ok(Map.of(
                 "extracted", ok,

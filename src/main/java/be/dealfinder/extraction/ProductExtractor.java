@@ -90,7 +90,7 @@ public class ProductExtractor {
 
             ArrayNode messages = request.putArray("messages");
             for (JsonNode m : fewShotMessages) messages.add(m);
-            messages.add(buildUserTurn(imageUrl, listing, /* cacheControl */ false));
+            messages.add(buildFinalQueryTurn(imageUrl, listing));
 
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(CLAUDE_API_URL))
@@ -132,7 +132,6 @@ public class ProductExtractor {
 
     private List<JsonNode> buildFewShotMessages(JsonNode examples) {
         List<JsonNode> out = new java.util.ArrayList<>();
-        int last = examples.size() - 1;
         for (int i = 0; i < examples.size(); i++) {
             JsonNode ex = examples.get(i);
             JsonNode listing = ex.path("listing");
@@ -142,26 +141,60 @@ public class ProductExtractor {
                     textOrNull(listing, "quantity"),
                     textOrNull(listing, "retailerSlug"),
                     textOrNull(listing, "retailerName"));
-            // user turn — only the LAST example carries cache_control so the
-            // entire system prompt + all 10 examples are cached as one block
-            out.add(buildUserTurn(ex.path("imageUrl").asText(), l, i == last));
-            // assistant turn — emits the tool_use directly
+            // user turn: tool_result bridge for example i-1 (when i > 0) + image + text for example i
+            out.add(buildExampleUserTurn(ex.path("imageUrl").asText(), l, i));
+            // assistant turn: tool_use with the expected extraction
             out.add(buildAssistantToolUse(i, ex.path("expectedExtraction")));
         }
         return out;
     }
 
-    private ObjectNode buildUserTurn(String imageUrl, Listing listing, boolean cacheControl) {
+    private ObjectNode buildExampleUserTurn(String imageUrl, Listing listing, int exampleIndex) {
         ObjectNode msg = mapper.createObjectNode();
         msg.put("role", "user");
         ArrayNode content = msg.putArray("content");
+        if (exampleIndex > 0) {
+            addToolResultBlock(content, exampleIndex - 1, false);
+        }
+        addImageBlock(content, imageUrl);
+        addListingTextBlock(content, listing, false);
+        return msg;
+    }
 
+    private ObjectNode buildFinalQueryTurn(String imageUrl, Listing listing) {
+        ObjectNode msg = mapper.createObjectNode();
+        msg.put("role", "user");
+        ArrayNode content = msg.putArray("content");
+        // Bridge for the LAST few-shot tool_use. Cache breakpoint sits on this
+        // tool_result so the entire static prefix (system + 10 examples) is
+        // cached and only the new image + listing text are fresh per call.
+        int lastIdx = fewShotMessages.size() / 2 - 1;
+        addToolResultBlock(content, lastIdx, true);
+        addImageBlock(content, imageUrl);
+        addListingTextBlock(content, listing, false);
+        return msg;
+    }
+
+    private void addToolResultBlock(ArrayNode content, int exampleIndex, boolean cacheControl) {
+        ObjectNode toolResult = content.addObject();
+        toolResult.put("type", "tool_result");
+        toolResult.put("tool_use_id", "toolu_fewshot_" + exampleIndex);
+        toolResult.put("content", "ok");
+        if (cacheControl) {
+            ObjectNode cc = toolResult.putObject("cache_control");
+            cc.put("type", "ephemeral");
+        }
+    }
+
+    private void addImageBlock(ArrayNode content, String imageUrl) {
         ObjectNode imageBlock = content.addObject();
         imageBlock.put("type", "image");
         ObjectNode source = imageBlock.putObject("source");
         source.put("type", "url");
         source.put("url", imageUrl);
+    }
 
+    private void addListingTextBlock(ArrayNode content, Listing listing, boolean cacheControl) {
         ObjectNode textBlock = content.addObject();
         textBlock.put("type", "text");
         textBlock.put("text", "Listing context:\n" +
@@ -170,12 +203,10 @@ public class ProductExtractor {
                 "  quantity:    " + nullToStr(listing.quantity()) + "\n" +
                 "  retailerSlug:" + nullToStr(listing.retailerSlug()) + "\n" +
                 "  retailerName:" + nullToStr(listing.retailerName()));
-
         if (cacheControl) {
             ObjectNode cc = textBlock.putObject("cache_control");
             cc.put("type", "ephemeral");
         }
-        return msg;
     }
 
     private ObjectNode buildAssistantToolUse(int index, JsonNode expectedExtraction) {

@@ -102,6 +102,25 @@ public class AdminResource {
     }
 
     @POST
+    @Path("/extract-deal/{id}")
+    @Operation(summary = "Run product extraction on a single deal by id (debug / targeted re-extract)")
+    public Response extractDeal(@PathParam("id") Long id) {
+        Deal deal = Deal.findById(id);
+        if (deal == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(Map.of("error", "deal " + id + " not found")).build();
+        }
+        boolean ok = analyzeAndPersist(deal);
+        Deal updated = Deal.findById(id);
+        return Response.ok(Map.of(
+                "extracted", ok,
+                "fingerprint", updated.fingerprint != null ? updated.fingerprint : "null",
+                "dealType", updated.dealType != null ? updated.dealType : "null",
+                "currentPrice", updated.currentPrice != null ? updated.currentPrice.toString() : "null"
+        )).build();
+    }
+
+    @POST
     @Path("/apply-cashback-overrides")
     @Transactional
     @Operation(summary = "Retroactively apply cashback overrides on deals where trapDetected=cashback")

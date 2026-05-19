@@ -34,7 +34,9 @@ public record DealDTO(
     Long daysExpired,
     boolean expiringSoon,
     BigDecimal lowestPriceSeen,
-    boolean atLowestPrice
+    boolean atLowestPrice,
+    String fingerprint,
+    String extractionJson
 ) {
     public static DealDTO from(Deal deal, String language, BigDecimal lowestPriceSeen) {
         long daysUntilExpiry = ChronoUnit.DAYS.between(LocalDate.now(), deal.validUntil);
@@ -70,7 +72,9 @@ public record DealDTO(
             deal.getDaysExpired(),
             !deal.isExpired() && daysUntilExpiry <= 2,
             lowestPriceSeen,
-            atLowest
+            atLowest,
+            deal.fingerprint,
+            deal.extractionJson
         );
     }
 

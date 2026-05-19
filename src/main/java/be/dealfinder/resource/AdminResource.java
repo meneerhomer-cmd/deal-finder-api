@@ -81,7 +81,10 @@ public class AdminResource {
     @Operation(summary = "Run product extraction on existing active deals that haven't been fingerprinted yet")
     public Response backfillImages(@QueryParam("limit") @DefaultValue("50") int limit) {
         LocalDate today = LocalDate.now();
-        String query = "fingerprint is null and imageUrl is not null and validUntil >= ?1";
+        // Use extractionJson (not fingerprint) as the "processed" marker — non-food /
+        // bundle deals legitimately get extractionJson but a null fingerprint, and a
+        // fingerprint-null filter would re-serve them forever, never advancing.
+        String query = "extractionJson is null and imageUrl is not null and validUntil >= ?1";
         List<Deal> candidates = Deal.find(query, today).page(0, limit).list();
         LOG.info("Extraction backfill: " + candidates.size() + " active candidates");
 

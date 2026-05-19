@@ -3,6 +3,7 @@ package be.dealfinder.resource;
 import be.dealfinder.entity.Deal;
 import be.dealfinder.extraction.ProductExtractor;
 import be.dealfinder.scraper.GraphQLScraper;
+import be.dealfinder.service.ProductAggregator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import be.dealfinder.service.NotificationService;
@@ -32,6 +33,9 @@ public class AdminResource {
 
     @Inject
     ProductExtractor productExtractor;
+
+    @Inject
+    ProductAggregator productAggregator;
 
     @Inject
     NotificationService notificationService;
@@ -121,6 +125,13 @@ public class AdminResource {
                 "dealType", updated.dealType != null ? updated.dealType : "null",
                 "currentPrice", updated.currentPrice != null ? updated.currentPrice.toString() : "null"
         )).build();
+    }
+
+    @POST
+    @Path("/aggregate-products")
+    @Operation(summary = "Aggregate fingerprinted deals into the Product registry")
+    public Response aggregateProducts() {
+        return Response.ok(productAggregator.aggregateAll()).build();
     }
 
     @POST

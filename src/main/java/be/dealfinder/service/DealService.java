@@ -189,6 +189,21 @@ public class DealService {
                 .collect(Collectors.toList());
     }
 
+    public List<DealDTO> findDealsByFingerprint(String fingerprint, String language) {
+        if (fingerprint == null || fingerprint.isBlank()) return List.of();
+        List<Deal> matches = Deal.findWithRelations(
+                "fingerprint = ?1 AND validUntil >= ?2",
+                Sort.ascending("currentPrice"),
+                fingerprint,
+                LocalDate.now().minusDays(expiredVisibleDays)
+        );
+        String lang = language != null ? language : "en";
+        Map<PriceHistory.LowestPriceKey, BigDecimal> lows = PriceHistory.findLowestPricesPerProductRetailer();
+        return matches.stream()
+                .map(d -> DealDTO.from(d, lang, lookupLowest(lows, d)))
+                .collect(Collectors.toList());
+    }
+
     private static boolean isPrivateLabel(String brand, String retailerName) {
         if (brand == null) return true;
         String b = brand.toLowerCase().trim();

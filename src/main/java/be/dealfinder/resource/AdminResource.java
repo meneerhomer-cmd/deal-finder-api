@@ -1,7 +1,9 @@
 package be.dealfinder.resource;
 
 import be.dealfinder.entity.Deal;
+import be.dealfinder.entity.MatchCorrection;
 import be.dealfinder.extraction.ProductExtractor;
+import io.quarkus.panache.common.Sort;
 import be.dealfinder.scraper.GraphQLScraper;
 import be.dealfinder.service.ProductAggregator;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -162,6 +164,16 @@ public class AdminResource {
         }
         LOG.info("Cashback override: scanned=" + scanned + " fixed=" + fixed);
         return Response.ok(Map.of("scanned", scanned, "fixed", fixed)).build();
+    }
+
+    @GET
+    @Path("/wrong-match-reports")
+    @Operation(summary = "List user-reported wrong matches for review (unreviewed first)")
+    public Response wrongMatchReports(@QueryParam("includeReviewed") @DefaultValue("false") boolean includeReviewed) {
+        List<MatchCorrection> reports = includeReviewed
+                ? MatchCorrection.findAll(Sort.descending("reportedAt")).list()
+                : MatchCorrection.find("reviewed = false", Sort.descending("reportedAt")).list();
+        return Response.ok(Map.of("count", reports.size(), "reports", reports)).build();
     }
 
     @POST

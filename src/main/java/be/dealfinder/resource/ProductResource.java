@@ -47,6 +47,15 @@ public class ProductResource {
     }
 
     @GET
+    @Path("/opportunity")
+    @Operation(summary = "The single biggest savings opportunity today (home banner); 204 when none qualifies")
+    public Response getOpportunity(@QueryParam("lang") @DefaultValue("nl") String language) {
+        return dealService.findBiggestOpportunity(language)
+                .map(o -> Response.ok(o).build())
+                .orElse(Response.noContent().build());
+    }
+
+    @GET
     @Path("/{fingerprint}")
     @Operation(summary = "One product plus its active deals across retailers")
     public Response getProduct(

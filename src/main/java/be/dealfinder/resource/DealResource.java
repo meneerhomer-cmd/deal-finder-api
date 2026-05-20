@@ -111,6 +111,33 @@ public class DealResource {
     }
 
     @GET
+    @Path("/{id}/substitute")
+    @Operation(summary = "One cheaper same-style alternative from another brand (or 204 when none qualifies)")
+    public Response getSubstitute(
+            @PathParam("id") Long id,
+            @QueryParam("lang") @DefaultValue("nl") String language
+    ) {
+        return dealService.findSubstitute(id, language)
+                .map(deal -> Response.ok(deal).build())
+                .orElse(Response.noContent().build());
+    }
+
+    @POST
+    @Path("/{id}/wrong-match")
+    @Operation(summary = "Report that a cross-retailer / substitute suggestion is a wrong match")
+    public Response reportWrongMatch(
+            @PathParam("id") Long id,
+            @Parameter(description = "The deal id that was wrongly matched to this one")
+            @QueryParam("targetId") Long targetId
+    ) {
+        if (targetId == null) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+        dealService.reportWrongMatch(id, targetId);
+        return Response.accepted().build();
+    }
+
+    @GET
     @Path("/retailer/{slug}")
     @Operation(summary = "Get deals for a specific retailer")
     public List<DealDTO> getDealsByRetailer(

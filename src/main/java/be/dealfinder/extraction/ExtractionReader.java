@@ -25,6 +25,12 @@ public final class ExtractionReader {
         return ex != null ? ex.path("confidence").asDouble(0.0) : 0.0;
     }
 
+    /** The extractor's detected trap (e.g. "cashback", "loyalty-card-only"), or null. */
+    public static String trapDetected(String extractionJson) {
+        JsonNode ex = parse(extractionJson);
+        return ex != null ? text(ex.path("trapDetected")) : null;
+    }
+
     /**
      * Per-unit price the shopper can compare across pack sizes. Prefers the
      * flyer's printed unit price when present, otherwise derives it from the

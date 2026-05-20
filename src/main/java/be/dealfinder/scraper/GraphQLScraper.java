@@ -4,6 +4,7 @@ import be.dealfinder.entity.Category;
 import be.dealfinder.entity.Deal;
 import be.dealfinder.entity.PriceHistory;
 import be.dealfinder.entity.Retailer;
+import be.dealfinder.extraction.ExtractionReader;
 import be.dealfinder.extraction.ProductExtraction;
 import be.dealfinder.extraction.ProductExtractor;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -196,15 +197,21 @@ public class GraphQLScraper {
 
         Deal existing = Deal.findByExternalId(externalId);
         if (existing != null) {
-            boolean priceChanged = existing.currentPrice != null && priceAfter != null
-                    && existing.currentPrice.compareTo(priceAfter) != 0;
+            BigDecimal previousPrice = existing.currentPrice;
             existing.currentPrice = priceAfter;
             existing.originalPrice = priceBefore;
             existing.discountPercentage = discount;
             existing.validUntil = validUntil;
             existing.scrapedAt = LocalDateTime.now();
             if (category != null) existing.category = category;
+            // A re-scrape overwrites price/discount with the raw flyer values, which
+            // for a cashback deal is currentPrice=0 / discount=100 again — so without
+            // this the deal reverts to a misleading "GRATIS / -100%" twice a day.
+            // Reuse the already-stored extraction (no new Claude call).
+            reapplyCashbackOverride(existing);
             existing.persist();
+            boolean priceChanged = previousPrice != null && existing.currentPrice != null
+                    && previousPrice.compareTo(existing.currentPrice) != 0;
             if (priceChanged) PriceHistory.create(existing).persist();
             return new int[]{0, 1};
         }
@@ -241,15 +248,23 @@ public class GraphQLScraper {
         deal.fingerprint = ex.fingerprint();
         deal.extractionJson = ex.rawJson();
 
-        // Cashback override: shopper pays the full price upfront and is reimbursed
-        // via the retailer's app afterwards. The raw GraphQL data reports this as
-        // currentPrice=0, discountPercentage=100, which renders misleadingly as
-        // "GRATIS" without this override.
-        if ("cashback".equals(ex.trapDetected()) && deal.originalPrice != null) {
-            deal.currentPrice = deal.originalPrice;
-            deal.discountPercentage = 0;
-            deal.dealType = "100% terugbetaald";
-        }
+        reapplyCashbackOverride(deal);
+    }
+
+    /**
+     * Cashback override: the shopper pays full price upfront and is reimbursed via
+     * the retailer's app afterwards. The raw GraphQL data reports this as
+     * currentPrice=0 / discountPercentage=100, which renders misleadingly as
+     * "GRATIS / -100%". Keyed off the stored extraction's trapDetected so it can be
+     * re-applied on every re-scrape — not just at extraction time — otherwise a
+     * re-scrape resets the price to the raw flyer value and the deal reverts.
+     */
+    private static void reapplyCashbackOverride(Deal deal) {
+        if (deal.originalPrice == null) return;
+        if (!"cashback".equals(ExtractionReader.trapDetected(deal.extractionJson))) return;
+        deal.currentPrice = deal.originalPrice;
+        deal.discountPercentage = 0;
+        deal.dealType = "100% terugbetaald";
     }
 
     static String formatQuantity(ProductExtraction.VolumeStructure vs) {

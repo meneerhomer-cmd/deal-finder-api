@@ -1,11 +1,13 @@
 package be.dealfinder.extraction;
 
+import be.dealfinder.service.ExtractionBudgetService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -44,6 +46,9 @@ public class ProductExtractor {
     @ConfigProperty(name = "deal.product.extraction.api-key", defaultValue = "not-set")
     String apiKey;
 
+    @Inject
+    ExtractionBudgetService budget;
+
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -75,6 +80,12 @@ public class ProductExtractor {
         if (imageUrl == null || imageUrl.isBlank()) {
             return Optional.empty();
         }
+        // Cost kill-switch: once the monthly budget is hit, stop making new
+        // Claude calls. Existing fingerprints keep working; we just don't add more.
+        if (budget.exhausted()) {
+            LOG.warn("Extraction skipped: monthly Anthropic budget reached (cost kill-switch active until next month)");
+            return Optional.empty();
+        }
 
         try {
             ObjectNode request = mapper.createObjectNode();
@@ -103,12 +114,12 @@ public class ProductExtractor {
 
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                LOG.errorf("Claude API returned %d: %s", response.statusCode(), response.body());
+                logApiFailure(response.statusCode(), response.body(), listing, imageUrl);
                 return Optional.empty();
             }
 
             JsonNode root = mapper.readTree(response.body());
-            logUsage(root.path("usage"));
+            recordUsage(root.path("usage"));
 
             JsonNode toolUse = findToolUseBlock(root);
             if (toolUse == null) {
@@ -119,9 +130,36 @@ public class ProductExtractor {
             JsonNode input = toolUse.path("input");
             return Optional.of(toProductExtraction(input));
         } catch (Exception e) {
-            LOG.errorf(e, "ProductExtractor failed for imageUrl=%s", imageUrl);
+            LOG.errorf(e, "ProductExtractor failed for %s (imageUrl=%s)", describe(listing), imageUrl);
             return Optional.empty();
         }
+    }
+
+    /**
+     * Classify Anthropic API failures so Sentry shows *why* extraction degraded —
+     * credit exhaustion (what stopped the May backfill), rate-limiting, and auth
+     * each need a different human response, so they get distinct messages.
+     */
+    private void logApiFailure(int status, String body, Listing listing, String imageUrl) {
+        String ctx = describe(listing);
+        String lower = body == null ? "" : body.toLowerCase();
+        if (lower.contains("credit balance")) {
+            LOG.errorf("Claude API: credit balance too low (HTTP %d) — top up at console.anthropic.com. "
+                    + "Extraction halted at: %s", status, ctx);
+        } else if (status == 429) {
+            LOG.warnf("Claude API rate-limited (HTTP 429) at %s — backfill should slow its cadence", ctx);
+        } else if (status == 401 || status == 403) {
+            LOG.errorf("Claude API auth failed (HTTP %d) — check deal.product.extraction.api-key", status);
+        } else if (status == 529) {
+            LOG.warnf("Claude API overloaded (HTTP 529) at %s — transient, retry later", ctx);
+        } else {
+            LOG.errorf("Claude API returned %d at %s: %s", status, ctx, body);
+        }
+    }
+
+    private static String describe(Listing l) {
+        if (l == null) return "unknown listing";
+        return nullToStr(l.productName()) + " @ " + nullToStr(l.retailerName());
     }
 
     /** Listing context passed alongside the image. */
@@ -279,14 +317,15 @@ public class ProductExtractor {
         );
     }
 
-    private void logUsage(JsonNode usage) {
+    private void recordUsage(JsonNode usage) {
         if (!usage.isObject()) return;
         int input = usage.path("input_tokens").asInt(0);
         int output = usage.path("output_tokens").asInt(0);
         int cacheCreate = usage.path("cache_creation_input_tokens").asInt(0);
         int cacheRead = usage.path("cache_read_input_tokens").asInt(0);
-        LOG.infof("ProductExtractor tokens: in=%d out=%d cacheCreated=%d cacheRead=%d",
-                input, output, cacheCreate, cacheRead);
+        LOG.infof("ProductExtractor tokens: in=%d out=%d cacheCreated=%d cacheRead=%d ($%.4f)",
+                input, output, cacheCreate, cacheRead, budget.costOf(input, output, cacheCreate, cacheRead));
+        budget.record(input, output, cacheCreate, cacheRead);
     }
 
     private byte[] readResource(String path) throws IOException {

@@ -1,6 +1,7 @@
 package be.dealfinder.dto;
 
 import be.dealfinder.entity.Deal;
+import be.dealfinder.extraction.ExtractionReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -36,13 +37,16 @@ public record DealDTO(
     BigDecimal lowestPriceSeen,
     boolean atLowestPrice,
     String fingerprint,
-    String extractionJson
+    String extractionJson,
+    BigDecimal derivedUnitPrice,
+    String derivedUnitLabel
 ) {
     public static DealDTO from(Deal deal, String language, BigDecimal lowestPriceSeen) {
         long daysUntilExpiry = ChronoUnit.DAYS.between(LocalDate.now(), deal.validUntil);
         boolean atLowest = lowestPriceSeen != null
                 && deal.currentPrice != null
                 && deal.currentPrice.compareTo(lowestPriceSeen) <= 0;
+        ExtractionReader.UnitPrice unit = ExtractionReader.unitPrice(deal.extractionJson, deal.currentPrice);
         return new DealDTO(
             deal.id,
             deal.productName,
@@ -74,7 +78,9 @@ public record DealDTO(
             lowestPriceSeen,
             atLowest,
             deal.fingerprint,
-            deal.extractionJson
+            deal.extractionJson,
+            unit != null ? unit.value() : null,
+            unit != null ? unit.label() : null
         );
     }
 

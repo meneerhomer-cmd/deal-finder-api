@@ -43,6 +43,9 @@ public class OptimizerResource {
         try {
             List<Map<String, Object>> items = new ArrayList<>();
             Map<String, Double> retailerTotals = new LinkedHashMap<>();
+            // store -> (product -> cheapest price at that store), for the
+            // "everything in one shop" option.
+            Map<String, Map<String, Double>> storeBaskets = new LinkedHashMap<>();
 
             for (String product : productNames) {
                 List<Map<String, Object>> results = searchProduct(product.trim());
@@ -61,12 +64,54 @@ public class OptimizerResource {
                     if (price != null) {
                         retailerTotals.merge(retailer, price, Double::sum);
                     }
+
+                    // Record each store's cheapest offer for this product (results
+                    // are price-sorted, so putIfAbsent keeps the lowest per store).
+                    for (Map<String, Object> offer : results) {
+                        String store = (String) offer.get("retailerName");
+                        Double p = (Double) offer.get("currentPrice");
+                        if (store != null && p != null) {
+                            storeBaskets.computeIfAbsent(store, k -> new LinkedHashMap<>())
+                                    .putIfAbsent(product, p);
+                        }
+                    }
                 } else {
                     item.put("cheapest", null);
                     item.put("allOptions", List.of());
                 }
 
                 items.add(item);
+            }
+
+            // Best single store: the one carrying the MOST of the list (tie →
+            // cheapest basket). Lets the shopper trade a few euros for one stop.
+            Map<String, Object> bestSingleStore = null;
+            String bestStore = null;
+            int bestCount = -1;
+            double bestTotal = Double.MAX_VALUE;
+            for (Map.Entry<String, Map<String, Double>> e : storeBaskets.entrySet()) {
+                int count = e.getValue().size();
+                double tot = e.getValue().values().stream().mapToDouble(d -> d).sum();
+                if (count > bestCount || (count == bestCount && tot < bestTotal)) {
+                    bestCount = count;
+                    bestTotal = tot;
+                    bestStore = e.getKey();
+                }
+            }
+            if (bestStore != null) {
+                List<Map<String, Object>> bsItems = storeBaskets.get(bestStore).entrySet().stream()
+                        .map(en -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("searchTerm", en.getKey());
+                            m.put("price", Math.round(en.getValue() * 100.0) / 100.0);
+                            return m;
+                        })
+                        .collect(Collectors.toList());
+                bestSingleStore = new LinkedHashMap<>();
+                bestSingleStore.put("retailerName", bestStore);
+                bestSingleStore.put("itemCount", bestCount);
+                bestSingleStore.put("estimatedTotal", Math.round(bestTotal * 100.0) / 100.0);
+                bestSingleStore.put("items", bsItems);
             }
 
             // Build retailer summary
@@ -96,14 +141,15 @@ public class OptimizerResource {
 
             double totalEstimate = retailerTotals.values().stream().mapToDouble(d -> d).sum();
 
-            return Response.ok(Map.of(
-                    "totalProducts", productNames.size(),
-                    "totalEstimate", Math.round(totalEstimate * 100.0) / 100.0,
-                    "stopsNeeded", retailerTotals.size(),
-                    "retailerSummary", retailerSummary,
-                    "shoppingRoute", shoppingRoute,
-                    "items", items
-            )).build();
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("totalProducts", productNames.size());
+            response.put("totalEstimate", Math.round(totalEstimate * 100.0) / 100.0);
+            response.put("stopsNeeded", retailerTotals.size());
+            response.put("retailerSummary", retailerSummary);
+            response.put("shoppingRoute", shoppingRoute);
+            response.put("items", items);
+            response.put("bestSingleStore", bestSingleStore);
+            return Response.ok(response).build();
 
         } catch (Exception e) {
             return Response.status(500).entity(Map.of("error", e.getMessage())).build();

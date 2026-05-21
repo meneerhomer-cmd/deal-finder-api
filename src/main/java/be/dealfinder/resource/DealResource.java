@@ -111,6 +111,13 @@ public class DealResource {
     }
 
     @GET
+    @Path("/cashback")
+    @Operation(summary = "Active '100% terugbetaald' (cashback) deals — hidden from normal lists by the discount filter")
+    public List<DealDTO> getCashbackDeals(@QueryParam("lang") @DefaultValue("nl") String language) {
+        return dealService.findCashbackDeals(language);
+    }
+
+    @GET
     @Path("/{id}/substitute")
     @Operation(summary = "One cheaper same-style alternative from another brand (or 204 when none qualifies)")
     public Response getSubstitute(

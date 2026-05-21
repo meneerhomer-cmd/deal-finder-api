@@ -207,6 +207,24 @@ public class DealService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Cashback ("100% terugbetaald") deals — genuinely free after reimbursement,
+     * but they carry discountPercentage=0 so the discount-floor filter hides them
+     * from the normal lists. This surfaces them on their own.
+     */
+    public List<DealDTO> findCashbackDeals(String language) {
+        List<Deal> deals = Deal.findWithRelations(
+                "dealType = ?1 AND validUntil >= ?2",
+                Sort.descending("originalPrice"),
+                "100% terugbetaald",
+                LocalDate.now().minusDays(expiredVisibleDays));
+        String lang = language != null ? language : "en";
+        Map<PriceHistory.LowestPriceKey, BigDecimal> lows = PriceHistory.findLowestPricesPerProductRetailer();
+        return deals.stream()
+                .map(d -> DealDTO.from(d, lang, lookupLowest(lows, d)))
+                .collect(Collectors.toList());
+    }
+
     public List<DealDTO> findDealsByFingerprint(String fingerprint, String language) {
         if (fingerprint == null || fingerprint.isBlank()) return List.of();
         List<Deal> matches = Deal.findWithRelations(

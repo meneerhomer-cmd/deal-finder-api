@@ -81,14 +81,18 @@ public class AdminResource {
     @POST
     @Path("/backfill-images")
     @Operation(summary = "Run product extraction on existing active deals that haven't been fingerprinted yet")
-    public Response backfillImages(@QueryParam("limit") @DefaultValue("50") int limit) {
+    public Response backfillImages(
+            @QueryParam("limit") @DefaultValue("50") int limit,
+            @QueryParam("minDiscount") @DefaultValue("25") int minDiscount) {
         LocalDate today = LocalDate.now();
         // Use extractionJson (not fingerprint) as the "processed" marker — non-food /
         // bundle deals legitimately get extractionJson but a null fingerprint, and a
         // fingerprint-null filter would re-serve them forever, never advancing.
-        String query = "extractionJson is null and imageUrl is not null and validUntil >= ?1";
-        List<Deal> candidates = Deal.find(query, today).page(0, limit).list();
-        LOG.info("Extraction backfill: " + candidates.size() + " active candidates");
+        // minDiscount gates which deals are worth spending extraction credits on —
+        // higher-discount deals first; lower the threshold later to catch the tail.
+        String query = "extractionJson is null and imageUrl is not null and validUntil >= ?1 and discountPercentage >= ?2";
+        List<Deal> candidates = Deal.find(query, today, minDiscount).page(0, limit).list();
+        LOG.info("Extraction backfill: " + candidates.size() + " active candidates (minDiscount=" + minDiscount + ")");
 
         int analyzed = 0;
         int failed = 0;
@@ -101,7 +105,7 @@ public class AdminResource {
             }
         }
 
-        long remaining = Deal.count(query, today) - analyzed;
+        long remaining = Deal.count(query, today, minDiscount) - analyzed;
         LOG.info("Extraction backfill done: analyzed=" + analyzed + " failed=" + failed + " remaining=" + remaining);
         return Response.ok(Map.of(
                 "analyzed", analyzed,

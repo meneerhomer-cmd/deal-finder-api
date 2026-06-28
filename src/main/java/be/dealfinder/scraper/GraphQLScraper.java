@@ -259,7 +259,7 @@ public class GraphQLScraper {
      * re-applied on every re-scrape — not just at extraction time — otherwise a
      * re-scrape resets the price to the raw flyer value and the deal reverts.
      */
-    private static void reapplyCashbackOverride(Deal deal) {
+    static void reapplyCashbackOverride(Deal deal) {
         if (deal.originalPrice == null) return;
         if (!"cashback".equals(ExtractionReader.trapDetected(deal.extractionJson))) return;
         deal.currentPrice = deal.originalPrice;

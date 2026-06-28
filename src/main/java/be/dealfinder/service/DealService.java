@@ -357,7 +357,7 @@ public class DealService {
         return Optional.ofNullable(best);
     }
 
-    private static boolean beats(OpportunityDTO a, OpportunityDTO b) {
+    static boolean beats(OpportunityDTO a, OpportunityDTO b) {
         int bySaving = a.savingEur().compareTo(b.savingEur());
         if (bySaving != 0) return bySaving > 0;
         int da = a.discountPercentage() != null ? a.discountPercentage() : 0;
@@ -366,7 +366,7 @@ public class DealService {
     }
 
     /** expectedPrice = max(30-day average, 30-day 90th percentile). */
-    private static BigDecimal expectedPrice(List<BigDecimal> prices) {
+    static BigDecimal expectedPrice(List<BigDecimal> prices) {
         List<BigDecimal> sorted = prices.stream().sorted().collect(Collectors.toList());
         BigDecimal sum = sorted.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal avg = sum.divide(BigDecimal.valueOf(sorted.size()), 2, RoundingMode.HALF_UP);
@@ -387,7 +387,7 @@ public class DealService {
         ).persist();
     }
 
-    private static boolean isPrivateLabel(String brand, String retailerName) {
+    static boolean isPrivateLabel(String brand, String retailerName) {
         if (brand == null) return true;
         String b = brand.toLowerCase().trim();
         if (b.equalsIgnoreCase(retailerName)) return true;

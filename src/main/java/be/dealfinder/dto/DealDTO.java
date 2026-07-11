@@ -37,7 +37,7 @@ public record DealDTO(
     BigDecimal lowestPriceSeen,
     boolean atLowestPrice,
     String fingerprint,
-    String extractionJson,
+    boolean extracted,
     BigDecimal derivedUnitPrice,
     String derivedUnitLabel
 ) {
@@ -58,7 +58,7 @@ public record DealDTO(
             deal.currentPrice,
             deal.originalPrice,
             deal.discountPercentage,
-            deal.dealType != null ? deal.dealType : detectDealType(deal.currentPrice, deal.originalPrice),
+            deal.dealType,
             deal.quantity,
             deal.unitPrice,
             deal.brand,
@@ -78,7 +78,7 @@ public record DealDTO(
             lowestPriceSeen,
             atLowest,
             deal.fingerprint,
-            deal.extractionJson,
+            deal.extractionJson != null,
             unit != null ? unit.value() : null,
             unit != null ? unit.label() : null
         );
@@ -86,16 +86,6 @@ public record DealDTO(
 
     public static DealDTO from(Deal deal, String language) {
         return from(deal, language, null);
-    }
-
-    private static String detectDealType(BigDecimal currentPrice, BigDecimal originalPrice) {
-        if (currentPrice == null || originalPrice == null || currentPrice.compareTo(BigDecimal.ZERO) == 0) {
-            return null;
-        }
-        double ratio = originalPrice.doubleValue() / currentPrice.doubleValue();
-        if (Math.abs(ratio - 2.0) < 0.05) return "Mogelijk 1+1 gratis";
-        if (Math.abs(ratio - 3.0) < 0.05) return "Mogelijk 2+1 gratis";
-        return null;
     }
 
     public static DealDTO from(Deal deal) {

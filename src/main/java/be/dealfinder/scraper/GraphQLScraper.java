@@ -7,6 +7,7 @@ import be.dealfinder.entity.Retailer;
 import be.dealfinder.extraction.ExtractionReader;
 import be.dealfinder.extraction.ProductExtraction;
 import be.dealfinder.extraction.ProductExtractor;
+import be.dealfinder.service.DealService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -32,6 +33,8 @@ public class GraphQLScraper {
     private static final Logger LOG = Logger.getLogger(GraphQLScraper.class);
     private static final String GRAPHQL_URL = "https://api.jafolders.com/graphql";
     private static final String CONTEXT_HEADER = "myshopi;nl;web;1;1";
+    private static final int PAGE_SIZE = 500;
+    private static final int MAX_OFFSET = 2500;
 
     @Inject
     ProductExtractor productExtractor;
@@ -108,12 +111,12 @@ public class GraphQLScraper {
     private List<JsonNode> fetchOffers(String shopSlug) throws Exception {
         List<JsonNode> allOffers = new ArrayList<>();
         int offset = 0;
-        int pageSize = 24;
+        int pageSize = PAGE_SIZE;
 
         while (true) {
             String variables = mapper.writeValueAsString(Map.of(
                     "shopSlug", shopSlug,
-                    "limit", 500,
+                    "limit", pageSize,
                     "offset", offset
             ));
 
@@ -145,7 +148,7 @@ public class GraphQLScraper {
 
             if (count < pageSize) break;
             offset += pageSize;
-            if (offset > 2000) break;
+            if (offset > MAX_OFFSET) break;
             Thread.sleep(200);
         }
 
@@ -163,7 +166,7 @@ public class GraphQLScraper {
         if (discount < minimumDiscount && discount > 0) return new int[]{0, 0};
 
         String offerId = offer.path("id").asText();
-        String externalId = "gql-" + retailer.slug + "-" + offerId;
+        String externalId = DealService.externalIdFor(retailer.slug, offerId);
 
         BigDecimal priceAfter = toBigDecimal(offer.path("priceAfterDiscount"));
         BigDecimal priceBefore = toBigDecimal(offer.path("priceBeforeDiscount"));

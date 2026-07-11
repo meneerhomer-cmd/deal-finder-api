@@ -1,6 +1,7 @@
 package be.dealfinder.service;
 
 import be.dealfinder.entity.Deal;
+import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
@@ -81,21 +82,30 @@ public class NotificationService {
 
         try {
             Firestore db = FirestoreClient.getFirestore();
-            List<QueryDocumentSnapshot> users = db.collection("users").get().get().getDocuments();
-            LOG.info("Notification fan-out: " + users.size() + " users × " + newDeals.size() + " new deals");
+            Set<String> uids = findNotifiableUids(db);
+            LOG.info("Notification fan-out: " + uids.size() + " users × " + newDeals.size() + " new deals");
 
             int matched = 0;
             int sent = 0;
-            for (QueryDocumentSnapshot userDoc : users) {
-                List<Deal> userMatches = matchesForUser(db, userDoc.getId(), newDeals);
+            for (String uid : uids) {
+                List<Deal> userMatches = matchesForUser(db, uid, newDeals);
                 if (userMatches.isEmpty()) continue;
                 matched++;
-                sent += sendToUser(db, userDoc.getId(), userMatches);
+                sent += sendToUser(db, uid, userMatches);
             }
             LOG.info("Notification fan-out done: " + matched + " users matched, " + sent + " pushes sent");
         } catch (Exception e) {
             LOG.error("Notification fan-out failed", e);
         }
+    }
+
+    private Set<String> findNotifiableUids(Firestore db) throws ExecutionException, InterruptedException {
+        Set<String> uids = new HashSet<>();
+        for (QueryDocumentSnapshot token : db.collectionGroup("fcmTokens").get().get().getDocuments()) {
+            DocumentReference userRef = token.getReference().getParent().getParent();
+            if (userRef != null) uids.add(userRef.getId());
+        }
+        return uids;
     }
 
     private List<Deal> matchesForUser(Firestore db, String uid, List<Deal> newDeals) throws ExecutionException, InterruptedException {
@@ -130,15 +140,19 @@ public class NotificationService {
         return Set.of();
     }
 
+    @SuppressWarnings("unchecked")
     private Set<String> loadWatchedNamesLowercase(Firestore db, String uid) throws ExecutionException, InterruptedException {
-        List<QueryDocumentSnapshot> docs = db.collection("users/" + uid + "/watchlist").get().get().getDocuments();
-        Set<String> names = new HashSet<>();
-        for (QueryDocumentSnapshot d : docs) {
-            String name = d.getString("productName");
-            if (name == null) name = d.getId(); // fallback: doc ID is the product name
-            names.add(name.toLowerCase(Locale.ROOT));
+        DocumentSnapshot snap = db.document("users/" + uid + "/preferences/watchlist").get().get();
+        if (!snap.exists()) return Set.of();
+        Object items = snap.get("items");
+        if (items instanceof List<?> list) {
+            Set<String> names = new HashSet<>();
+            for (Object o : list) {
+                if (o instanceof String s && !s.isBlank()) names.add(s.toLowerCase(Locale.ROOT));
+            }
+            return names;
         }
-        return names;
+        return Set.of();
     }
 
     private int sendToUser(Firestore db, String uid, List<Deal> matches) throws ExecutionException, InterruptedException {

@@ -19,7 +19,9 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -28,6 +30,21 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class DealService {
+
+    public static String externalIdFor(String retailerSlug, String offerId) {
+        return "gql-" + retailerSlug + "-" + offerId;
+    }
+
+    public Map<String, Long> findLocalDealIdsByExternalIds(Collection<String> externalIds) {
+        if (externalIds == null || externalIds.isEmpty()) return Map.of();
+        List<Deal> deals = Deal.find("externalId in ?1 and validUntil >= ?2",
+                externalIds, LocalDate.now()).list();
+        Map<String, Long> byExternalId = new HashMap<>();
+        for (Deal deal : deals) {
+            byExternalId.put(deal.externalId, deal.id);
+        }
+        return byExternalId;
+    }
 
     @ConfigProperty(name = "deals.expired-visible-days", defaultValue = "3")
     int expiredVisibleDays;

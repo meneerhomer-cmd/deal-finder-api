@@ -1,5 +1,6 @@
 package be.dealfinder.resource;
 
+import be.dealfinder.service.DealService;
 import be.dealfinder.service.GraphQLCache;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,6 +27,9 @@ public class FlyerResource {
 
     @Inject
     GraphQLCache cache;
+
+    @Inject
+    DealService dealService;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -112,6 +116,8 @@ public class FlyerResource {
                 pageProducts.computeIfAbsent(pageId, k -> new ArrayList<>()).add(product);
             }
 
+            attachLocalDealIds(pageProducts, shopSlug);
+
             // Build pages array with image URLs
             List<Map<String, Object>> pages = new ArrayList<>();
             for (var entry : pageProducts.entrySet()) {
@@ -135,6 +141,24 @@ public class FlyerResource {
         } catch (Exception e) {
             return Response.status(500).entity(Map.of("error", e.getMessage())).build();
         }
+    }
+
+    private void attachLocalDealIds(Map<String, List<Map<String, Object>>> pageProducts, String shopSlug) {
+        Map<String, List<Map<String, Object>>> byExternalId = new LinkedHashMap<>();
+        for (List<Map<String, Object>> products : pageProducts.values()) {
+            for (Map<String, Object> product : products) {
+                product.put("dealId", null);
+                String offerId = Objects.toString(product.get("id"), null);
+                if (offerId == null || offerId.isBlank()) continue;
+                byExternalId.computeIfAbsent(DealService.externalIdFor(shopSlug, offerId), k -> new ArrayList<>())
+                        .add(product);
+            }
+        }
+
+        Map<String, Long> localIds = dealService.findLocalDealIdsByExternalIds(byExternalId.keySet());
+        localIds.forEach((externalId, dealId) ->
+                byExternalId.getOrDefault(externalId, List.of())
+                        .forEach(product -> product.put("dealId", dealId)));
     }
 
     private JsonNode executeQuery(String query, String rootField) throws Exception {

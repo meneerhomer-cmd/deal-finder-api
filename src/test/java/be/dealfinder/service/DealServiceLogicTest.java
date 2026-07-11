@@ -102,4 +102,10 @@ class DealServiceLogicTest {
         assertFalse(DealService.isPrivateLabel("Dreft", "Carrefour"));
         assertFalse(DealService.isPrivateLabel("Coca-Cola", "Delhaize"));
     }
+
+    @Test
+    void externalIdFor_matchesTheFormatTheScraperPersists() {
+        assertEquals("gql-kruidvat-abc-123", DealService.externalIdFor("kruidvat", "abc-123"));
+        assertEquals("gql-carrefour-market-9", DealService.externalIdFor("carrefour-market", "9"));
+    }
 }

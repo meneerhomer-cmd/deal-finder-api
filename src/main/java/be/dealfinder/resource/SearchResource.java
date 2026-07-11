@@ -1,5 +1,6 @@
 package be.dealfinder.resource;
 
+import be.dealfinder.service.DealService;
 import be.dealfinder.service.GraphQLCache;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,6 +18,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -42,6 +44,9 @@ public class SearchResource {
     @Inject
     GraphQLCache cache;
 
+    @Inject
+    DealService dealService;
+
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -63,6 +68,7 @@ public class SearchResource {
 
         try {
             SearchOutcome outcome = searchOffersWithKind(query.trim(), limit);
+            attachLocalDealIds(outcome.results);
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("query", query);
             body.put("count", outcome.results.size());
@@ -117,6 +123,25 @@ public class SearchResource {
         }
 
         return new SearchOutcome("primary", List.of(), null);
+    }
+
+    private void attachLocalDealIds(List<Map<String, Object>> results) {
+        if (results.isEmpty()) return;
+
+        Map<String, List<Map<String, Object>>> byExternalId = new LinkedHashMap<>();
+        for (Map<String, Object> result : results) {
+            result.put("dealId", null);
+            String slug = Objects.toString(result.get("retailerSlug"), null);
+            String offerId = Objects.toString(result.get("id"), null);
+            if (slug == null || slug.isBlank() || offerId == null || offerId.isBlank()) continue;
+            byExternalId.computeIfAbsent(DealService.externalIdFor(slug, offerId), k -> new ArrayList<>())
+                    .add(result);
+        }
+
+        Map<String, Long> localIds = dealService.findLocalDealIdsByExternalIds(byExternalId.keySet());
+        localIds.forEach((externalId, dealId) ->
+                byExternalId.getOrDefault(externalId, List.of())
+                        .forEach(result -> result.put("dealId", dealId)));
     }
 
     private record SearchOutcome(String kind, List<Map<String, Object>> results, List<String> synonymsUsed) {}

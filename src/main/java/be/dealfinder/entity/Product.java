@@ -45,6 +45,13 @@ public class Product extends PanacheEntity {
     public Integer dealCount;
     public Integer retailerCount;
 
+    /**
+     * True only when every deal in this group names a real product line at sufficient
+     * confidence. False means the fingerprint is brand-level ("any Pampers"), so the group
+     * may hold different SKUs — group them, list them, but never claim a saving across them.
+     */
+    public boolean comparisonGrade;
+
     @Column(precision = 10, scale = 2)
     public BigDecimal minCurrentPrice;
 

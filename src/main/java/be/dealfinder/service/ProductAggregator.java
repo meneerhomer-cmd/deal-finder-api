@@ -2,6 +2,7 @@ package be.dealfinder.service;
 
 import be.dealfinder.entity.Deal;
 import be.dealfinder.entity.Product;
+import be.dealfinder.extraction.ExtractionReader;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.scheduler.Scheduled;
@@ -90,6 +91,11 @@ public class ProductAggregator {
                 .filter(d -> d.retailer != null)
                 .map(d -> d.retailer.id)
                 .distinct().count();
+
+        // Every member must be comparison-grade. One brand-level deal in the group is enough
+        // to make "goedkoopst bij X — bespaar €Y" a claim about two different products.
+        p.comparisonGrade = group.stream()
+                .allMatch(d -> ExtractionReader.isComparisonGrade(d.extractionJson));
         p.minCurrentPrice = group.stream()
                 .map(d -> d.currentPrice)
                 .filter(java.util.Objects::nonNull)

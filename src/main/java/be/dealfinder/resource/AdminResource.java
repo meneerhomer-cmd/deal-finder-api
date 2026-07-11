@@ -2,6 +2,8 @@ package be.dealfinder.resource;
 
 import be.dealfinder.entity.Deal;
 import be.dealfinder.entity.MatchCorrection;
+import be.dealfinder.extraction.ExtractionReader;
+import be.dealfinder.extraction.ProductExtraction;
 import be.dealfinder.extraction.ProductExtractor;
 import io.quarkus.panache.common.Sort;
 import be.dealfinder.scraper.GraphQLScraper;
@@ -76,6 +78,46 @@ public class AdminResource {
     @Operation(summary = "Get scraper status")
     public ScraperService.ScraperStatus getStatus() {
         return scraperService.getStatus();
+    }
+
+    @POST
+    @Path("/refingerprint")
+    @Transactional
+    @Operation(summary = "Recompute fingerprints from stored extraction JSON under the current scheme",
+               description = "No Anthropic calls. The extraction JSON holds every identity field, so a "
+                       + "fingerprint-scheme change is a recompute, not a re-extraction. Pass force=true "
+                       + "to rebuild every row rather than only those on an older scheme version.")
+    public Response refingerprint(@QueryParam("force") @DefaultValue("false") boolean force) {
+        String query = force
+                ? "extractionJson is not null"
+                : "extractionJson is not null and (fingerprintVersion is null or fingerprintVersion < ?1)";
+        List<Deal> deals = force
+                ? Deal.<Deal>find(query).list()
+                : Deal.<Deal>find(query, ProductExtraction.SCHEME_VERSION).list();
+
+        int changed = 0;
+        int unchanged = 0;
+        for (Deal deal : deals) {
+            String recomputed = ExtractionReader.fingerprint(deal.extractionJson);
+            if (!java.util.Objects.equals(deal.fingerprint, recomputed)) {
+                deal.fingerprint = recomputed;
+                changed++;
+            } else {
+                unchanged++;
+            }
+            deal.fingerprintVersion = ProductExtraction.SCHEME_VERSION;
+            deal.persist();
+        }
+
+        LOG.info("Refingerprint (scheme v" + ProductExtraction.SCHEME_VERSION + "): scanned=" + deals.size()
+                + " changed=" + changed + " unchanged=" + unchanged);
+        return Response.ok(Map.of(
+                "schemeVersion", ProductExtraction.SCHEME_VERSION,
+                "scanned", deals.size(),
+                "changed", changed,
+                "unchanged", unchanged,
+                "note", "Run POST /admin/aggregate-products next to rebuild the registry."
+        )).build();
     }
 
     @POST

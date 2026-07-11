@@ -193,4 +193,55 @@ class ExtractionReaderTest {
         assertEquals(2, up.value().scale());
         assertEquals(new BigDecimal("3.00"), up.value());
     }
+
+    // --- comparison grade (the false-savings gate) --------------------------
+
+    private static String extraction(String brand, String productLine, double confidence) {
+        String line = productLine == null ? "null" : "\"" + productLine + "\"";
+        return "{\"fingerprintable\":true,\"confidence\":" + confidence
+                + ",\"category\":\"huishouden\",\"style\":\"wasmiddel\""
+                + ",\"brand\":\"" + brand + "\",\"productLine\":" + line
+                + ",\"variantFamily\":\"standard\"}";
+    }
+
+    @Test
+    void isComparisonGrade_namedProductLineAtConfidence_isTrue() {
+        assertTrue(ExtractionReader.isComparisonGrade(extraction("Dash", "Platinum", 0.93)));
+    }
+
+    @Test
+    void isComparisonGrade_brandOnlyFingerprint_isFalse() {
+        // "any Pampers" — groups different SKUs, so it must never carry a savings claim.
+        assertFalse(ExtractionReader.isComparisonGrade(extraction("Pampers", null, 0.95)));
+    }
+
+    @Test
+    void isComparisonGrade_belowConfidenceFloor_isFalse() {
+        assertFalse(ExtractionReader.isComparisonGrade(extraction("Dash", "Platinum", 0.62)));
+    }
+
+    @Test
+    void isComparisonGrade_nullOrUnparseable_isFalse() {
+        assertFalse(ExtractionReader.isComparisonGrade(null));
+        assertFalse(ExtractionReader.isComparisonGrade("not json"));
+    }
+
+    // --- fingerprint recompute (the "no re-spend" guarantee) -----------------
+
+    @Test
+    void fingerprint_recomputedFromStoredJson_matchesTheScraperFormat() {
+        assertEquals("huishouden:wasmiddel:dash:platinum:standard",
+                ExtractionReader.fingerprint(extraction("Dash", "Platinum", 0.93)));
+    }
+
+    @Test
+    void fingerprint_missingProductLine_joinsTheLiteralNull() {
+        assertEquals("huishouden:wasmiddel:pampers:null:standard",
+                ExtractionReader.fingerprint(extraction("Pampers", null, 0.95)));
+    }
+
+    @Test
+    void fingerprint_notFingerprintable_isNull() {
+        assertNull(ExtractionReader.fingerprint("{\"fingerprintable\":false,\"brand\":\"Dash\"}"));
+    }
 }

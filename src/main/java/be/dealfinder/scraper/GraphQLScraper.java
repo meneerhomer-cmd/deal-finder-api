@@ -249,6 +249,7 @@ public class GraphQLScraper {
         if (unit != null) deal.unitPrice = unit;
         deal.loyaltyCard = "loyalty-card-only".equals(ex.trapDetected()) ? "vereist klantenkaart" : null;
         deal.fingerprint = ex.fingerprint();
+        deal.fingerprintVersion = ProductExtraction.SCHEME_VERSION;
         deal.extractionJson = ex.rawJson();
 
         reapplyCashbackOverride(deal);

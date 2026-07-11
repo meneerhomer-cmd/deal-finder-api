@@ -32,6 +32,38 @@ public final class ExtractionReader {
     }
 
     /**
+     * Recompute the fingerprint from the stored extraction, under the CURRENT scheme.
+     * The extraction JSON holds every identity field, so a scheme change is a recompute,
+     * not a re-extraction — no Anthropic call, no re-spend.
+     */
+    public static String fingerprint(String extractionJson) {
+        JsonNode ex = parse(extractionJson);
+        if (ex == null) return null;
+        return ProductExtraction.fingerprintOf(
+                ex.path("fingerprintable").asBoolean(false),
+                text(ex.path("category")),
+                text(ex.path("style")),
+                text(ex.path("brand")),
+                text(ex.path("productLine")),
+                text(ex.path("variantFamily")));
+    }
+
+    /**
+     * Is this extraction sound to make a price CLAIM on ("goedkoopst bij X, bespaar €Y")?
+     * Requires a named product line — a brand-only fingerprint groups different SKUs of the
+     * same brand — plus enough self-reported confidence.
+     */
+    public static boolean isComparisonGrade(String extractionJson) {
+        JsonNode ex = parse(extractionJson);
+        if (ex == null) return false;
+        return ProductExtraction.isStructurallySpecified(
+                        text(ex.path("category")),
+                        text(ex.path("brand")),
+                        text(ex.path("productLine")))
+                && ex.path("confidence").asDouble(0.0) >= ProductExtraction.COMPARISON_CONFIDENCE_FLOOR;
+    }
+
+    /**
      * Per-unit price the shopper can compare across pack sizes. Prefers the
      * flyer's printed unit price when present, otherwise derives it from the
      * extracted volume structure and the deal's current price. Returns null

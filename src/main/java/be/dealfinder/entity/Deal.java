@@ -73,6 +73,10 @@ public class Deal extends PanacheEntity {
     @Column(columnDefinition = "TEXT")
     public String extractionJson;
 
+    // Which fingerprint scheme produced the value above. Lets /admin/refingerprint find and
+    // recompute stale rows from extractionJson when the scheme changes — without re-extracting.
+    public Integer fingerprintVersion;
+
     // === Computed Properties ===
 
     @Transient

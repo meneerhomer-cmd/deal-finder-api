@@ -3,12 +3,11 @@
 # Move ANTHROPIC_API_KEY, QUARKUS_DATASOURCE_PASSWORD and ADMIN_API_KEY off Cloud Run
 # plaintext env vars and into Secret Manager.
 #
-# Run this YOURSELF (it prompts for the rotated Anthropic key; nothing is echoed).
+#   ./scripts/migrate-secrets.sh            # carry the existing values across
+#   ./scripts/migrate-secrets.sh --rotate   # paste a new Anthropic key instead (hidden input)
 #
-#   ./scripts/migrate-secrets.sh
-#
-# Rotate the Anthropic key in the console FIRST. The old key was exposed, and an
-# exposed key on a funded account is a spending risk — rotate before you top up.
+# Values are read straight off the running service and piped into Secret Manager —
+# never printed, never passed on a command line.
 
 set -euo pipefail
 
@@ -54,16 +53,22 @@ carry_env_to_secret() {
   printf '%s' "$value" | upsert_secret "$secret_name"
 }
 
-say "1/4  Anthropic API key (rotated)"
-printf '     Paste the NEW Anthropic key (input hidden), then press enter: '
-read -rs ANTHROPIC_KEY
-printf '\n'
-if [[ -z "${ANTHROPIC_KEY}" ]]; then
-  echo "     No key entered — aborting." >&2
-  exit 1
+say "1/4  Anthropic API key"
+if [[ "${1:-}" == "--rotate" ]]; then
+  printf '     Paste the NEW Anthropic key (input hidden), then press enter: '
+  read -rs ANTHROPIC_KEY
+  printf '\n'
+  if [[ -z "${ANTHROPIC_KEY}" ]]; then
+    echo "     No key entered — aborting." >&2
+    exit 1
+  fi
+  printf '%s' "$ANTHROPIC_KEY" | upsert_secret "anthropic-api-key"
+  unset ANTHROPIC_KEY
+  echo "  stored the rotated key — revoke the OLD one in the console."
+else
+  carry_env_to_secret ANTHROPIC_API_KEY anthropic-api-key
+  echo "  carried the existing key across (pass --rotate to paste a new one instead)"
 fi
-printf '%s' "$ANTHROPIC_KEY" | upsert_secret "anthropic-api-key"
-unset ANTHROPIC_KEY
 
 say "2/4  Carrying the existing DB password and admin key across (values never printed)"
 carry_env_to_secret QUARKUS_DATASOURCE_PASSWORD db-password
@@ -86,14 +91,28 @@ gcloud run services update "$SERVICE" \
   --quiet
 
 say "Verifying"
-echo "  plaintext env vars still on the service (want: none of the three):"
-gcloud run services describe "$SERVICE" --region "$REGION" --project "$PROJECT" \
-  --format='value(spec.template.spec.containers[0].env)' \
-  | tr ';' '\n' | grep -oE "'name': '(ANTHROPIC_API_KEY|QUARKUS_DATASOURCE_PASSWORD|ADMIN_API_KEY)'" || echo "    none — clean"
+# --set-secrets mounts each secret AS an env var, so the NAME is present either way.
+# The only thing that distinguishes migrated from exposed is value (inline) vs
+# valueFrom.secretKeyRef — grepping for the name would report success regardless.
+gcloud run services describe "$SERVICE" --region "$REGION" --project "$PROJECT" --format=json \
+  | python3 -c "
+import sys, json
+env = json.load(sys.stdin)['spec']['template']['spec']['containers'][0].get('env', [])
+watched = {'ANTHROPIC_API_KEY', 'QUARKUS_DATASOURCE_PASSWORD', 'ADMIN_API_KEY'}
+bad = 0
+for e in env:
+    if e.get('name') not in watched:
+        continue
+    if e.get('value'):
+        print(f\"  {e['name']}: PLAINTEXT — still exposed\"); bad += 1
+    elif 'valueFrom' in e:
+        ref = e['valueFrom'].get('secretKeyRef', {})
+        print(f\"  {e['name']}: secretKeyRef -> {ref.get('name')}:{ref.get('key')}\")
+sys.exit(1 if bad else 0)
+"
 
 code=$(curl -s -o /dev/null -w '%{http_code}' \
   "https://deal-finder-api-927801911058.europe-west1.run.app/api/v1/retailers")
-echo "  /api/v1/retailers -> HTTP $code (want 200)"
+echo "  /api/v1/retailers -> HTTP $code (want 200 — proves the DB password resolves)"
 
-say "Done. The old plaintext key is no longer on the service."
-echo "Revoke the OLD Anthropic key in the console if you haven't already."
+say "Done. None of the three secrets are plaintext env vars on the service any more."

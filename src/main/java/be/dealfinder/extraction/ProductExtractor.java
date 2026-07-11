@@ -38,7 +38,9 @@ public class ProductExtractor {
     private static final Logger LOG = Logger.getLogger(ProductExtractor.class);
     private static final String CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
     private static final String MODEL = "claude-haiku-4-5-20251001";
-    private static final int MAX_TOKENS = 1024;
+    // A truncated tool response is the worst failure mode: the input is billed, the JSON fails to
+    // parse, and the deal stays unextracted. Headroom is nearly free — output is billed as generated.
+    private static final int MAX_TOKENS = 2048;
 
     @ConfigProperty(name = "deal.product.extraction.enabled", defaultValue = "false")
     boolean enabled;

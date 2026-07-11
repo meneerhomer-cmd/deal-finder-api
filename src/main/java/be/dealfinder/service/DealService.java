@@ -333,7 +333,7 @@ public class DealService {
         for (Product p : Product.<Product>listAll()) {
             if (p.minCurrentPrice == null) continue;
             // The banner states a euro saving. Only a group that is one actual product may.
-            if (!p.comparisonGrade) continue;
+            if (!Boolean.TRUE.equals(p.comparisonGrade)) continue;
 
             List<Deal> deals = Deal.find("fingerprint = ?1 AND validUntil >= ?2", p.fingerprint, activeCutoff).list();
             if (deals.isEmpty()) continue;
